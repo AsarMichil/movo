@@ -7,10 +7,11 @@
     isInHomeZone,
     type TripParameters,
   } from "../calculations";
+  import type { Homezone } from "../types/evo";
+  import { MediaQuery } from "svelte/reactivity";
   import { onMount } from "svelte";
   import { getMapKit } from "../utilities/mapkit";
-  import type { Homezone } from "../types/evo";
-  import { Drawer } from "vaul-svelte";
+  import WorkingDrawer from "./WorkingDrawer.svelte";
 
   const { homezones }: { homezones: Homezone[] } = $props();
 
@@ -112,8 +113,8 @@
     latitude: 49.28091630159075,
     longitude: -123.11395918331695,
   };
-  let snap = $state(0);
-
+  const isDesktop = new MediaQuery("(min-width: 768px)");
+  let snapValue: string | number = $state("148px");
   $effect(() => {
     if (tripState.destinationCoordinate) {
       console.log("destinationCoordinate", tripState.destinationCoordinate);
@@ -128,7 +129,7 @@
         ),
       );
       map.addAnnotation(currentDestination);
-      snap = 0.4;
+      snapValue = 0.4;
       // center map on destination
       map.showItems([currentDestination], { animate: true });
     }
@@ -232,31 +233,61 @@
     />
   </div>
   <div class="h-screen w-screen md:w-full md:h-full md:grow">
+    <!-- <div class="w-full h-full bg-green-500"></div> -->
     <div class="w-full h-full" bind:this={mapElement}></div>
   </div>
 </div>
 
-<Drawer.Root
-  open
-  dismissible={false}
+{#if !isDesktop.current}
+  <WorkingDrawer snapValue={snapValue}>
+    <TripSidebar
+      bind:originCoordinate={tripState.originCoordinate}
+      bind:destinationCoordinate={tripState.destinationCoordinate}
+      inEvoHomeZone={tripState.inEvoHomeZone}
+      bind:stayDuration={tripState.stayDuration}
+      bind:bcaaMembership={tripState.bcaaMembership}
+      bind:electricVehicle={tripState.electricVehicle}
+      bind:roundTripRequired={tripState.roundTripRequired}
+      bind:vehicleType={tripState.vehicleType}
+      route={tripState.route}
+      {comparisonResult}
+      calculateTripDetails={onSubmit}
+    />
+  </WorkingDrawer>
+{/if}
+
+<!-- <Drawer.Root snapPoints={["88px", "400px", 1]} activeSnapPoint={activeSnapPoint}>
+  <Drawer.Trigger>Open</Drawer.Trigger>
+  <Drawer.Content>
+    <Drawer.Header>
+      <Drawer.Title>Are you sure absolutely sure?</Drawer.Title>
+      <Drawer.Description>This action cannot be undone.</Drawer.Description>
+    </Drawer.Header>
+    <Drawer.Footer>
+      <Button>Submit</Button>
+      <Drawer.Close>Cancel</Drawer.Close>
+    </Drawer.Footer>
+  </Drawer.Content>
+</Drawer.Root> -->
+
+<!-- <Drawer.Root
   snapPoints={["78px", "400px", 1]}
-  modal={false}
-  bind:activeSnapPoint={snap}
-  onActiveSnapPointChange={(snapPoint) => {
-    console.log("activeSnapPoint", snapPoint);
-  }}
+  bind:activeSnapPoint
 >
-  <Drawer.Overlay class="fixed inset-0 bg-black/40 md:hidden" />
+  <Drawer.Trigger>Open</Drawer.Trigger>
+
   <Drawer.Portal>
+    <Drawer.Overlay />
+
     <Drawer.Content
       class="bg-stone-50 fixed flex flex-col rounded-t-[10px] bottom-0 left-0 right-0 h-full max-h-[97%] mx-[-1px] md:hidden"
     >
-      <Drawer.Handle class=" bg-stone-500!"></Drawer.Handle>
       <div
         class={"flex flex-col max-w-md mx-auto w-full p-2 min-h-[400px] " +
-          (snap === 1 ? "overflow-y-auto" : "overflow-hidden")}
+          (activeSnapPoint === "1" ? "overflow-y-auto" : "overflow-hidden")}
       >
-        <!--  -->
+        <div>Hello</div>
+        
         <TripSidebar
           bind:originCoordinate={tripState.originCoordinate}
           bind:destinationCoordinate={tripState.destinationCoordinate}
@@ -272,5 +303,6 @@
         />
       </div>
     </Drawer.Content>
+    class="fixed inset-0 bg-black/40 md:hidden"
   </Drawer.Portal>
-</Drawer.Root>
+</Drawer.Root> -->

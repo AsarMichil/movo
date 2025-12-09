@@ -2,6 +2,7 @@
   import Address from "./Address.svelte";
   import Input from "./Input.svelte";
   import type { ComparisonCalc, TripState } from "./TripTypes";
+  
   // Get current location on component mount
   type ExpandedStage = "mini" | "partial" | "full";
   // Update the map with coordinates
