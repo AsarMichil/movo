@@ -1,21 +1,21 @@
-import { getMapKit } from "../utilities/mapkit";
+import type { MapKit } from "@apple/mapkit-loader"
 
 export const calculateDirection = async (
-  start: mapkit.Coordinate,
-  end: mapkit.Coordinate,
+  mapkitInstance: MapKit,
+  start: InstanceType<MapKit["Coordinate"]>,
+  end: InstanceType<MapKit["Coordinate"]>,
   departureDate: Date,
 ) => {
-  const mapkit = await getMapKit();
-  const directions = new mapkit.Directions();
-  const directionsRequest: mapkit.DirectionsRequest = {
+  const directions = new mapkitInstance.Directions()
+  const directionsRequest: Parameters<InstanceType<MapKit["Directions"]>["route"]>[0] = {
     origin: start,
     destination: end,
-    transportType: mapkit.Directions.Transport.Automobile,
+    transportType: mapkitInstance.Directions.Transport.Automobile,
     departureDate,
-  };
+  }
 
   // Using the correct ETA response structure
-  const route = new Promise<{ directions: mapkit.DirectionsResponse }>(
+  const route = new Promise<{ directions: Parameters<Parameters<InstanceType<MapKit["Directions"]>["route"]>[1]>[1] }>(
     (resolve, reject) => {
       directions.route(directionsRequest, (error, data) => {
         if (error) {

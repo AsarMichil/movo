@@ -1,7 +1,8 @@
 <script lang="ts">
   import Address from "./Address.svelte";
   import Input from "./Input.svelte";
-  import type { TripFormData } from "./TripTypes";
+  // import type { TripFormData } from "./TripTypes";
+  type TripFormData = any
 
   let {
     origin = $bindable(),

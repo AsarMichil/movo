@@ -1,112 +1,127 @@
 <script lang="ts">
   import TripSidebar from "./TripSidebar.svelte";
   import type { ComparisonCalc, TripState } from "./TripTypes";
-  import {
-    calculateDirection,
-    compareCarShareOptions,
-    isInHomeZone,
-    type TripParameters,
-  } from "../calculations";
   import type { Homezone } from "../types/evo";
   import { MediaQuery } from "svelte/reactivity";
   import { onMount } from "svelte";
-  import { getMapKit } from "../utilities/mapkit";
-  import WorkingDrawer from "./WorkingDrawer.svelte";
+  import WorkingDrawer from "./WorkingDrawer.svelte"
+  import { goto } from "$app/navigation"
+  import { buildSearchParams } from "../lib/url-params"
+  import { getTripContext } from "../lib/trip-context.svelte"
+  import { load, type MapKit } from "@apple/mapkit-loader"
+  import type { TripParameters } from "../calculations"
+
+  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
 
   const { homezones }: { homezones: Homezone[] } = $props();
+
+  const tripContext = getTripContext();
 
   let tripState = $state<TripState>({
     originCoordinate: undefined,
     destinationCoordinate: undefined,
-    stayDuration: undefined,
+    stayDuration: tripContext.params?.stay_duration ?? undefined,
     inEvoHomeZone: false,
-    bcaaMembership: false,
-    electricVehicle: false,
-    roundTripRequired: false,
+    bcaaMembership: tripContext.params?.bcaa_member ?? false,
+    electricVehicle: tripContext.params?.electric_vehicle ?? false,
+    roundTripRequired: tripContext.params?.round_trip ?? false,
     route: undefined,
-    vehicleType: undefined,
+    vehicleType: tripContext.params?.vehicle_type,
   });
 
   let comparisonResult = $state<Promise<ComparisonCalc>>();
+  let isFormView = $state(true);
 
-  function onSubmit() {
-    comparisonResult = calculateTripDetails(tripState);
-  }
+  $effect(() => {
+    if (tripContext.calculations) {
+      comparisonResult = Promise.resolve({
+        data: tripContext.calculations,
+        error: null,
+      });
+      isFormView = false;
+    }
+  });
 
-  async function calculateTripDetails(
-    state: TripState,
-  ): Promise<ComparisonCalc> {
-    if (!state.originCoordinate || !state.destinationCoordinate) {
-      console.error("No origin or destination coordinates");
-      return {
-        data: null,
-        error: {
-          message: "No origin or destination coordinates",
-          show: true,
-        },
-      };
+  async function onSubmit() {
+    if (!tripState.originCoordinate || !tripState.destinationCoordinate) {
+      console.error("No origin or destination coordinates")
+      return
     }
 
-    // Get directions from MapKit
-    const startCoord = state.originCoordinate;
-    const endCoord = state.destinationCoordinate;
-    const result = await calculateDirection(
-      new mapkit.Coordinate(startCoord.latitude, startCoord.longitude),
-      new mapkit.Coordinate(endCoord.latitude, endCoord.longitude),
-      new Date(),
-    );
-
-    console.log("Result:", result);
-    if (!result.directions.routes[0]) {
-      console.error("No routes found");
-      return {
-        data: null,
-        error: {
-          message: "No routes found",
-          show: true,
-        },
-      };
+    if (!mapkitInstance) {
+      console.error("MapKit not initialized")
+      return
     }
-    state.route = result.directions.routes[0];
-    state.inEvoHomeZone = isInHomeZone(homezones, state.destinationCoordinate);
-    // Using the correct response structure from the updated directions.ts file
-    const travelTime = result.directions.routes[0].expectedTravelTime;
-    const travelDistance = result.directions.routes[0].distance;
-    console.log("traveldistance", travelDistance);
-    // Calculate total trip time
-    const travelTimeMinutes = Math.round((travelTime / 60) * 100) / 100;
 
-    // Calculate days (24 hour periods)
-    let tripDistanceKm = Math.ceil(travelDistance / 1000);
-    console.log("tripDistanceKm", tripDistanceKm);
-    // Now calculate the cost comparison
-    const tripParams: TripParameters = {
-      start_date: new Date(),
-      driving_minutes: travelTimeMinutes,
-      staying_minutes: state.stayDuration ?? 0,
-      distance_km: tripDistanceKm,
-      is_bcaa_member: state.bcaaMembership,
-      end_is_in_evo_home_zone: state.inEvoHomeZone,
-      is_ev: state.electricVehicle,
-      vehicle_preference: state.vehicleType,
-      round_trip_required: state.roundTripRequired,
-    };
-    console.log("tripParams", tripParams);
-    const comparisonResult = compareCarShareOptions(tripParams);
-    console.log("comparisonResult", comparisonResult);
-    return {
-      data: comparisonResult,
-      error: null,
-    };
+    const searchParams = buildSearchParams({
+      origin_lat: tripState.originCoordinate.latitude,
+      origin_lng: tripState.originCoordinate.longitude,
+      dest_lat: tripState.destinationCoordinate.latitude,
+      dest_lng: tripState.destinationCoordinate.longitude,
+      stay_duration: tripState.stayDuration,
+      bcaa_member: tripState.bcaaMembership,
+      electric_vehicle: tripState.electricVehicle,
+      round_trip: tripState.roundTripRequired,
+      vehicle_type: tripState.vehicleType,
+    })
+
+    goto(`?${searchParams.toString()}`)
+
+    // Perform client-side calculations
+    tripContext.setIsCalculating(true)
+
+    try {
+      const { calculateDirection, compareCarShareOptions, isInHomeZone } = await import("../calculations")
+
+      const result = await calculateDirection(
+        mapkitInstance,
+        tripState.originCoordinate,
+        tripState.destinationCoordinate,
+        new Date(),
+      )
+
+      if (!result.directions?.routes?.[0]) {
+        console.error("No route found")
+        tripContext.setIsCalculating(false)
+        return
+      }
+
+      const route = result.directions.routes[0]
+      const travelTimeMinutes = Math.round((route.expectedTravelTime / 60) * 100) / 100
+      const tripDistanceKm = Math.ceil(route.distance / 1000)
+      const endIsInEvoHomeZone = isInHomeZone(
+        homezones,
+        tripState.destinationCoordinate
+      )
+
+      const tripParams: TripParameters = {
+        start_date: new Date(),
+        driving_minutes: travelTimeMinutes,
+        staying_minutes: tripState.stayDuration ?? 0,
+        distance_km: tripDistanceKm,
+        is_bcaa_member: tripState.bcaaMembership,
+        end_is_in_evo_home_zone: endIsInEvoHomeZone,
+        is_ev: tripState.electricVehicle,
+        vehicle_preference: tripState.vehicleType,
+        round_trip_required: tripState.roundTripRequired,
+      }
+
+      const calculations = compareCarShareOptions(tripParams)
+      tripContext.setCalculations(calculations)
+    } catch (error) {
+      console.error("Error calculating trip:", error)
+    } finally {
+      tripContext.setIsCalculating(false)
+    }
   }
 
-  let currentRoute = $state<mapkit.Route | undefined>(undefined);
-  let currentDestination: mapkit.MarkerAnnotation | undefined;
+  let currentRoute = $state<any | undefined>(undefined)
+  let currentDestination: InstanceType<MapKit["MarkerAnnotation"]> | undefined
 
-  let mapElement: HTMLDivElement;
-  let map: mapkit.Map;
-  let mapkitInstance: typeof mapkit;
-  // let routeOverlay: mapkit.Overlay | null = null;
+  let mapElement: HTMLDivElement
+  let map: InstanceType<MapKit["Map"]>
+  let mapkitInstance: MapKit
+  // let routeOverlay: mapkit.Overlay | null = null
   const defaultDelta = 0.1;
   // Default coordinates (Vancouver)
   const defaultCoordinates = {
@@ -163,7 +178,31 @@
   onMount(async () => {
     try {
       // Initialize MapKit JS
-      mapkitInstance = await getMapKit();
+      mapkitInstance = await load({
+        token: PUBLIC_MAPKIT_TOKEN,
+        language: "en-US",
+        libraries: ["services", "full-map", "geojson", "user-location"],
+      });
+
+      // Initialize coordinates from URL params if available
+      if (tripContext.params) {
+        if (
+          !tripState.originCoordinate &&
+          tripContext.params.origin_lat &&
+          tripContext.params.origin_lng
+        ) {
+          tripState.originCoordinate = new mapkitInstance.Coordinate(
+            tripContext.params.origin_lat,
+            tripContext.params.origin_lng,
+          );
+        }
+        if (tripContext.params.dest_lat && tripContext.params.dest_lng) {
+          tripState.destinationCoordinate = new mapkitInstance.Coordinate(
+            tripContext.params.dest_lat,
+            tripContext.params.dest_lng,
+          );
+        }
+      }
 
       // Create the map
       map = new mapkitInstance.Map(mapElement, {
@@ -178,10 +217,12 @@
       });
       // after creating map ensure overlay is on screen??
 
-      map.addEventListener("user-location-change", (event) => {
-        console.log("user-location-change", event);
-        tripState.originCoordinate = event.coordinate;
-      });
+      map.addEventListener("user-location-change", (event: any) => {
+        console.log("user-location-change", event)
+        if (!tripState.originCoordinate) {
+          tripState.originCoordinate = event.coordinate
+        }
+      })
       map.addEventListener("user-location-error", () => {
         map.region = new mapkitInstance.CoordinateRegion(
           new mapkitInstance.Coordinate(
@@ -192,28 +233,42 @@
         );
       });
 
-      // map.region = region;
+      // map.region = region
 
       homezones.forEach((homezone) => {
-        const zone = homezone.zone;
-        const items = mapkitInstance.importGeoJSON(zone);
+        const zone = homezone.zone
+        const items = mapkitInstance.importGeoJSON(zone)
         if (items instanceof Error) {
-          throw items;
+          throw items
         }
 
-        map.addItems(items);
-      });
+        if (items) {
+          map.addItems(items as any)
+        }
+      })
+
+      map.overlays.forEach(
+        (overlay) =>
+          (overlay.style = new mapkitInstance.Style({
+            fillColor: "#00BCE2",
+            strokeColor: "#00BCE2",
+          })),
+      )
+
+      // If URL params have coordinates, perform calculation
+      if (
+        tripContext.params &&
+        tripContext.params.origin_lat &&
+        tripContext.params.origin_lng &&
+        tripContext.params.dest_lat &&
+        tripContext.params.dest_lng
+      ) {
+        await onSubmit()
+      }
     } catch (error) {
-      console.error("Error initializing Apple Maps:", error);
+      console.error("Error initializing Apple Maps:", error)
     }
-    map.overlays.forEach(
-      (overlay) =>
-        (overlay.style = new mapkitInstance.Style({
-          fillColor: "#00BCE2",
-          strokeColor: "#00BCE2",
-        })),
-    );
-  });
+  })
 </script>
 
 <div class="w-full flex h-full">
@@ -230,6 +285,7 @@
       route={tripState.route}
       {comparisonResult}
       calculateTripDetails={onSubmit}
+      bind:isFormView
     />
   </div>
   <div class="h-screen w-screen md:w-full md:h-full md:grow">
@@ -239,7 +295,7 @@
 </div>
 
 {#if !isDesktop.current}
-  <WorkingDrawer snapValue={snapValue}>
+  <WorkingDrawer {snapValue}>
     <TripSidebar
       bind:originCoordinate={tripState.originCoordinate}
       bind:destinationCoordinate={tripState.destinationCoordinate}
@@ -252,6 +308,7 @@
       route={tripState.route}
       {comparisonResult}
       calculateTripDetails={onSubmit}
+      bind:isFormView
     />
   </WorkingDrawer>
 {/if}

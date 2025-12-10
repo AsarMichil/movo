@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { CostOption } from "./TripTypes";
+  // import type { CostOption } from "./TripTypes";
+  type CostOption = any
 
   type ExpandedStage = "mini" | "partial" | "full";
 

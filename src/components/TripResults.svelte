@@ -4,12 +4,12 @@
   import type { ComparisonCalc } from "./TripTypes";
 
   type Props = {
-    comparisonResult: Promise<ComparisonCalc> | undefined;
-    origin?: mapkit.SearchAutocompleteResult;
-    destination?: mapkit.SearchAutocompleteResult;
-    stayDuration?: number;
-    onEditForm: () => void;
-  };
+    comparisonResult: Promise<ComparisonCalc> | undefined
+    origin?: any
+    destination?: any
+    stayDuration?: number
+    onEditForm: () => void
+  }
 
   let {
     comparisonResult,

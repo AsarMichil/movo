@@ -7,14 +7,14 @@
   import { createCombobox, melt } from "@melt-ui/svelte";
 
   type Props = {
-    label: string;
-    value: mapkit.SearchAutocompleteResult | undefined;
-    placeholder?: string;
-  };
+    label: string
+    value: any | undefined
+    placeholder?: string
+  }
 
-  let { label: labelText, value = $bindable(), placeholder }: Props = $props();
+  let { label: labelText, value = $bindable(), placeholder }: Props = $props()
 
-  let results = $state<mapkit.SearchAutocompleteResult[]>([]);
+  let results = $state<any[]>([])
   let errorMessage = $state<string>();
 
   let controller: AbortController | undefined;

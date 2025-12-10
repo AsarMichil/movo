@@ -16,15 +16,15 @@
     vehicleType = $bindable(),
     comparisonResult,
     calculateTripDetails,
+    isFormView = $bindable(),
   }: TripState & {
     comparisonResult: Promise<ComparisonCalc> | undefined;
     calculateTripDetails: () => void;
+    isFormView: boolean;
   } = $props();
 
-  let origin = $state<mapkit.SearchAutocompleteResult | undefined>(undefined);
-  let destination = $state<mapkit.SearchAutocompleteResult | undefined>(
-    undefined,
-  );
+  let origin = $state<any | undefined>(undefined)
+  let destination = $state<any | undefined>(undefined)
 
   $inspect(originCoordinate, destinationCoordinate, origin, destination);
 
@@ -37,8 +37,6 @@
       destinationCoordinate = destination.coordinate;
     }
   });
-
-  let isFormView = $state(true);
   let isLoading = $state(false);
   function toggleExpandedStage(stage: ExpandedStage) {
     if (stage === "mini") {

@@ -1,7 +1,7 @@
 <script lang="ts">
   type Props = {
-    origin?: mapkit.SearchAutocompleteResult;
-    destination?: mapkit.SearchAutocompleteResult;
+    origin?: any
+    destination?: any
     distanceKm?: number;
     travelTimeMinutes?: number;
     stayDuration?: number;

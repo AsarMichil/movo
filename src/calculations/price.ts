@@ -588,7 +588,7 @@ function optimizeMultipleTrips(trips: TripParameters[]): string {
 
 export function isInHomeZone(
   homezones: Homezone[],
-  coordinate: mapkit.Coordinate,
+  coordinate: { latitude: number; longitude: number },
 ): boolean {
   const point: Feature<Point> = {
     type: "Feature",

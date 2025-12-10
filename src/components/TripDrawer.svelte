@@ -20,8 +20,8 @@
   } = $props();
 
   // Local state for address autocomplete results
-  let origin = $state<mapkit.SearchAutocompleteResult | undefined>(undefined);
-  let destination = $state<mapkit.SearchAutocompleteResult | undefined>(
+  let origin = $state<any | undefined>(undefined)
+  let destination = $state<any | undefined>(
     undefined,
   );
 

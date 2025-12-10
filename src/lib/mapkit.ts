@@ -1,48 +1,62 @@
-import { getMapKit } from "../utilities/mapkit";
+import { load, type MapKit } from "@apple/mapkit-loader"
+import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
+
+let mapkitInstance: MapKit | null = null
+
+async function getMapKit(): Promise<MapKit> {
+  if (mapkitInstance) return mapkitInstance
+
+  mapkitInstance = await load({
+    token: PUBLIC_MAPKIT_TOKEN,
+    language: "en-US",
+    libraries: ["services"],
+  })
+
+  return mapkitInstance
+}
 
 export const mk = {
   search: {
     autocomplete: async (
       query: string,
-      options?: mapkit.SearchAutocompleteOptions & { signal?: AbortSignal },
-    ): Promise<mapkit.SearchAutocompleteResult[]> => {
-      const { signal, ...restOptions } = options ?? {};
+      options?: { signal?: AbortSignal },
+    ): Promise<any[]> => {
+      const { signal } = options ?? {}
 
-      const mk = await getMapKit();
+      const mk = await getMapKit()
 
       const search = new mk.Search({
         getsUserLocation: true,
         includeQueries: false,
         includePointsOfInterest: true,
         includeAddresses: true,
-        // TODO: Export this somewhere instead of hardcoding it.
-        coordinate: new mapkit.Coordinate(
+        coordinate: new mk.Coordinate(
           49.28091630159075,
           -123.11395918331695,
         ),
-      });
+      })
 
-      return await new Promise<mapkit.SearchAutocompleteResult[]>(
+      return await new Promise<any[]>(
         (resolve, reject) => {
           const requestId = search.autocomplete(
             query,
-            (error, response) => {
+            (error: Error | null, response?: any) => {
               if (error) {
-                reject(error);
-                return;
+                reject(error)
+                return
               }
 
-              resolve(response.results);
+              resolve(response?.results ?? [])
             },
-            restOptions,
-          );
+            {},
+          )
 
           signal?.addEventListener("abort", () => search.cancel(requestId), {
             once: true,
             passive: true,
-          });
+          })
         },
-      );
+      )
     },
   },
-};
+}
