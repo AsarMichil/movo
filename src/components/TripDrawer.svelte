@@ -71,7 +71,7 @@
     snapPoints={["148px", 0.6, 0.85, 1]}
     dismissible={false}
   >
-    <Drawer.Content class="bg-stone-50 fixed bottom-0 left-0 right-0 z-50">
+    <Drawer.Content class="bg-stone-50 fixed bottom-0 left-0 right-0">
       <div class="mx-auto w-full max-w-md">
         <div
           class="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 mb-4 mt-2"

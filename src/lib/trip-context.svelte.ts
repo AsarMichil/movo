@@ -12,6 +12,7 @@ class TripContext {
   params = $state<TripParamsUrl | null>(null)
   calculations = $state<ComparisonResult | null>(null)
   isCalculating = $state(false)
+  resetTrigger = $state(0)
 
   setParams(params: TripParamsUrl | null) {
     this.params = params
@@ -23,6 +24,11 @@ class TripContext {
 
   setIsCalculating(isCalculating: boolean) {
     this.isCalculating = isCalculating
+  }
+
+  triggerReset() {
+    this.resetTrigger++
+    this.calculations = null
   }
 }
 

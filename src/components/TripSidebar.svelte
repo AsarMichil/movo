@@ -2,7 +2,11 @@
   import Address from "./Address.svelte";
   import Input from "./Input.svelte";
   import type { ComparisonCalc, TripState } from "./TripTypes";
-  
+  import { goto } from "$app/navigation";
+  import { getTripContext } from "../lib/trip-context.svelte";
+
+  const tripContext = getTripContext();
+
   // Get current location on component mount
   type ExpandedStage = "mini" | "partial" | "full";
   // Update the map with coordinates
@@ -14,17 +18,20 @@
     electricVehicle = $bindable(),
     roundTripRequired = $bindable(),
     vehicleType = $bindable(),
+    route = $bindable(),
     comparisonResult,
     calculateTripDetails,
     isFormView = $bindable(),
+    originIsCurrentLocation = $bindable(),
   }: TripState & {
     comparisonResult: Promise<ComparisonCalc> | undefined;
     calculateTripDetails: () => void;
     isFormView: boolean;
+    originIsCurrentLocation: boolean;
   } = $props();
 
-  let origin = $state<any | undefined>(undefined)
-  let destination = $state<any | undefined>(undefined)
+  let origin = $state<any | undefined>(undefined);
+  let destination = $state<any | undefined>(undefined);
 
   $inspect(originCoordinate, destinationCoordinate, origin, destination);
 
@@ -39,13 +46,19 @@
   });
   let isLoading = $state(false);
   function toggleExpandedStage(stage: ExpandedStage) {
+    // TODO: fix calculation logic
+    // if (stage === "mini") {
+    //   return "partial";
+    // }
+    // if (stage === "partial") {
+    //   return "full";
+    // }
+    // return "mini";
     if (stage === "mini") {
       return "partial";
+    } else {
+      return "mini";
     }
-    if (stage === "partial") {
-      return "full";
-    }
-    return "mini";
   }
   // Add toggle state variables for each card
   let evoExpandedStage = $state<ExpandedStage>("mini");
@@ -70,6 +83,8 @@
     evoExpandedStage = "mini";
     modoMonthlyExpandedStage = "mini";
     modoPlusExpandedStage = "mini";
+    tripContext.triggerReset();
+    goto("/", { replaceState: true });
   }
 
   // Function to toggle boolean chip values
@@ -91,7 +106,10 @@
           <Address
             bind:value={destination}
             label="Destination"
-            placeholder="Where do you want to go?"
+            placeholder="Destination"
+            onLocationSelected={(coordinate) => {
+              destinationCoordinate = coordinate;
+            }}
           />
         </div>
 
@@ -100,10 +118,11 @@
             bind:value={origin}
             label="Origin"
             placeholder="Starting location"
+            onLocationSelected={(coordinate, isCurrentLocation) => {
+              originCoordinate = coordinate;
+              originIsCurrentLocation = isCurrentLocation;
+            }}
           />
-          <p class="text-xs text-gray-500 mt-1">
-            We'll try to use your current location if allowed
-          </p>
         </div>
 
         <div>
@@ -119,9 +138,10 @@
             bind:value={stayDuration}
             min="0"
           /> -->
+
           <Input
             labelText="Stay Duration (minutes)"
-            placeholder="Stay Duration?"
+            placeholder="Stay Duration"
             type="number"
             bind:value={stayDuration}
             min="0"
@@ -145,18 +165,15 @@
             />
             <button
               type="button"
-              class={`${minWidth} h-8 text-center rounded-full border-2 transition-colors duration-200 font-medium ${
+              class={`cursor-pointer ${minWidth} h-8 text-center border-2 transition-colors duration-200 font-medium ${
                 value
-                  ? "bg-gray-800 text-white border-gray-800"
-                  : "bg-transparent text-gray-800 border-gray-300"
+                  ? "bg-gray-700 text-white border-gray-700"
+                  : "bg-transparent text-gray-400 border-gray-300 hover:bg-gray-700 hover:text-white duration-100"
               }`}
               onclick={() => onToggle(toggleChip(value))}
             >
               <span class="flex justify-center items-center">
                 <span class="text-xs">{label}</span>
-                {#if value}
-                  <span class="ml-1">✓</span>
-                {/if}
               </span>
             </button>
           </div>
@@ -190,7 +207,7 @@
               <select
                 id="vehicle-type"
                 bind:value={vehicleType}
-                class="min-w-[115px] text-xs h-8 text-center rounded-full border-gray-300 border-2 transition-colors duration-200 font-medium"
+                class="cursor-pointer min-w-[115px] text-xs h-8 text-center bg-gray-700 text-white border-gray-700 border-2 transition-colors duration-200 font-medium"
               >
                 <option value="daily_drive">Daily Drive</option>
                 <option value="large_loadable">Large Loadable</option>
@@ -209,7 +226,7 @@
           calculateTripDetails();
           isFormView = false;
         }}
-        class="bg-gray-800 text-orange-50 w-full px-2 py-3 uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        class="bg-gray-800 text-orange-50 w-full px-2 py-3 uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:underline"
       >
         {#if isLoading}
           Calculating...
@@ -335,7 +352,7 @@
                       </svg>
                     {:else if option.expandedStage === "partial"}
                       <!-- Two dots icon -->
-                      <svg
+                      <!-- <svg
                         class="w-5 h-5"
                         fill="currentColor"
                         viewBox="0 0 24 24"
@@ -343,6 +360,21 @@
                       >
                         <circle cx="9" cy="12" r="2" />
                         <circle cx="15" cy="12" r="2" />
+                      </svg> -->
+                      <!-- TODO: Fix calculation X icon -->
+                      <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     {:else}
                       <!-- X icon -->

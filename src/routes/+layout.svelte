@@ -1,8 +1,10 @@
 <script lang="ts">
   import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public";
   import { load } from "@apple/mapkit-loader";
+  import { Toaster } from "svelte-sonner";
 
   import "../app.css";
+  let { children } = $props();
 </script>
 
 <svelte:head>
@@ -16,4 +18,5 @@
   ></script> -->
 </svelte:head>
 
-<slot />
+<Toaster />
+{@render children()}

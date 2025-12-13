@@ -4,14 +4,14 @@
   import type { Homezone } from "../types/evo";
   import { MediaQuery } from "svelte/reactivity";
   import { onMount } from "svelte";
-  import WorkingDrawer from "./WorkingDrawer.svelte"
-  import { goto } from "$app/navigation"
-  import { buildSearchParams } from "../lib/url-params"
-  import { getTripContext } from "../lib/trip-context.svelte"
-  import { load, type MapKit } from "@apple/mapkit-loader"
-  import type { TripParameters } from "../calculations"
+  import WorkingDrawer from "./WorkingDrawer.svelte";
+  import { goto } from "$app/navigation";
+  import { buildSearchParams } from "../lib/url-params";
+  import { getTripContext } from "../lib/trip-context.svelte";
+  import { load, type MapKit } from "@apple/mapkit-loader";
+  import type { TripParameters } from "../calculations";
 
-  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
+  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public";
 
   const { homezones }: { homezones: Homezone[] } = $props();
 
@@ -44,13 +44,13 @@
 
   async function onSubmit() {
     if (!tripState.originCoordinate || !tripState.destinationCoordinate) {
-      console.error("No origin or destination coordinates")
-      return
+      console.error("No origin or destination coordinates");
+      return;
     }
 
     if (!mapkitInstance) {
-      console.error("MapKit not initialized")
-      return
+      console.error("MapKit not initialized");
+      return;
     }
 
     const searchParams = buildSearchParams({
@@ -63,36 +63,43 @@
       electric_vehicle: tripState.electricVehicle,
       round_trip: tripState.roundTripRequired,
       vehicle_type: tripState.vehicleType,
-    })
+    });
 
-    goto(`?${searchParams.toString()}`)
+    goto(`?${searchParams.toString()}`);
 
     // Perform client-side calculations
-    tripContext.setIsCalculating(true)
+    tripContext.setIsCalculating(true);
 
     try {
-      const { calculateDirection, compareCarShareOptions, isInHomeZone } = await import("../calculations")
+      const { calculateDirection, compareCarShareOptions, isInHomeZone } =
+        await import("../calculations");
 
       const result = await calculateDirection(
         mapkitInstance,
         tripState.originCoordinate,
         tripState.destinationCoordinate,
         new Date(),
-      )
+      );
 
       if (!result.directions?.routes?.[0]) {
-        console.error("No route found")
-        tripContext.setIsCalculating(false)
-        return
+        console.error("No route found");
+        tripContext.setIsCalculating(false);
+        return;
       }
 
-      const route = result.directions.routes[0]
-      const travelTimeMinutes = Math.round((route.expectedTravelTime / 60) * 100) / 100
-      const tripDistanceKm = Math.ceil(route.distance / 1000)
+      const route = result.directions.routes[0];
+      console.log("ARR",route);
+      const travelTimeMinutes =
+        Math.round((route.expectedTravelTime / 60) * 100) / 100;
+      const tripDistanceKm = Math.ceil(route.distance / 1000);
       const endIsInEvoHomeZone = isInHomeZone(
         homezones,
-        tripState.destinationCoordinate
-      )
+        tripState.destinationCoordinate,
+      );
+
+      // Store the route for map display
+      tripState.route = route;
+      console.log("route", tripState.route);
 
       const tripParams: TripParameters = {
         start_date: new Date(),
@@ -104,23 +111,25 @@
         is_ev: tripState.electricVehicle,
         vehicle_preference: tripState.vehicleType,
         round_trip_required: tripState.roundTripRequired,
-      }
+      };
 
-      const calculations = compareCarShareOptions(tripParams)
-      tripContext.setCalculations(calculations)
+      const calculations = compareCarShareOptions(tripParams);
+      tripContext.setCalculations(calculations);
     } catch (error) {
-      console.error("Error calculating trip:", error)
+      console.error("Error calculating trip:", error);
     } finally {
-      tripContext.setIsCalculating(false)
+      tripContext.setIsCalculating(false);
     }
   }
 
-  let currentRoute = $state<any | undefined>(undefined)
-  let currentDestination: InstanceType<MapKit["MarkerAnnotation"]> | undefined
+  let currentRoute = $state<any | undefined>(undefined);
+  let currentDestination: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
+  let currentOrigin: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
+  let originIsCurrentLocation = $state(false);
 
-  let mapElement: HTMLDivElement
-  let map: InstanceType<MapKit["Map"]>
-  let mapkitInstance: MapKit
+  let mapElement: HTMLDivElement;
+  let map: InstanceType<MapKit["Map"]>;
+  let mapkitInstance: MapKit;
   // let routeOverlay: mapkit.Overlay | null = null
   const defaultDelta = 0.1;
   // Default coordinates (Vancouver)
@@ -130,10 +139,50 @@
   };
   const isDesktop = new MediaQuery("(min-width: 768px)");
   let snapValue: string | number = $state("148px");
+
   $effect(() => {
-    if (tripState.destinationCoordinate) {
+    if (
+      tripState.originCoordinate &&
+      mapkitInstance &&
+      !originIsCurrentLocation
+    ) {
+      console.log(tripState.originCoordinate);
+      // Remove old origin marker if exists
+      if (currentOrigin) {
+        map.removeAnnotation(currentOrigin);
+      }
+
+      // Only create marker for non-current-location origins (gray marker)
+      // Current location is handled by showsUserLocation
+      currentOrigin = new mapkitInstance.MarkerAnnotation(
+        new mapkitInstance.Coordinate(
+          tripState.originCoordinate.latitude,
+          tripState.originCoordinate.longitude,
+        ),
+        {
+          color: "#6B7280",
+          glyphText: "",
+        },
+      );
+      map.addAnnotation(currentOrigin);
+    } else if (currentOrigin && originIsCurrentLocation) {
+      // Remove marker if switching to current location
+      map.removeAnnotation(currentOrigin);
+      currentOrigin = undefined;
+    }
+
+    // Enable user location display when using current location
+    if (map && originIsCurrentLocation) {
+      if (!map.showsUserLocation) {
+        map.showsUserLocation = true;
+      }
+    }
+  });
+
+  $effect(() => {
+    if (tripState.destinationCoordinate && !tripState.route) {
       console.log("destinationCoordinate", tripState.destinationCoordinate);
-      // place marker on map
+      // place marker on map only if no route calculated yet
       if (currentDestination) {
         map.removeAnnotation(currentDestination);
       }
@@ -146,20 +195,43 @@
       map.addAnnotation(currentDestination);
       snapValue = 0.4;
       // center map on destination
-      map.showItems([currentDestination], { animate: true });
+      map.showItems([currentDestination], {
+        animate: true,
+        minimumSpan: new mapkitInstance.CoordinateSpan(0.008, 0.008),
+      });
     }
+  });
 
-    if (tripState.route) {
+  $effect(() => {
+    if (tripState.route && mapkitInstance && map) {
+      // Remove old route if exists
+      console.log("1", currentRoute);
+
       if (currentRoute) {
         map.removeOverlay(currentRoute.polyline);
       }
-      const polylines = tripState.route.polyline;
-      polylines.style = new mapkitInstance.Style({
+      console.log("2", tripState.route);
+
+      // Style and add the route polyline
+      const polyline = tripState.route.polyline;
+      polyline.style = new mapkitInstance.Style({
         strokeColor: "#000088",
-        lineWidth: 2,
+        lineWidth: 3,
       });
-      if (map) map.showItems(polylines);
+      map.addOverlay(polyline);
       currentRoute = tripState.route;
+
+      // Update markers
+      const itemsToShow: any[] = [polyline];
+
+      // Add origin marker if not using current location
+      if (tripState.originCoordinate && !originIsCurrentLocation) {
+        if (currentOrigin) {
+          itemsToShow.push(currentOrigin);
+        }
+      }
+
+      // Add/update destination marker
       if (tripState.destinationCoordinate) {
         if (currentDestination) {
           map.removeAnnotation(currentDestination);
@@ -171,7 +243,38 @@
           ),
         );
         map.addAnnotation(currentDestination);
+        itemsToShow.push(currentDestination);
       }
+
+      // Zoom to show all items (route, origin, destination)
+      if (itemsToShow.length > 0) {
+        map.showItems(itemsToShow, {
+          animate: true,
+          padding: new mapkitInstance.Padding(60, 60, 60, 60),
+        });
+      }
+
+      snapValue = 0.4;
+    }
+  });
+
+  $effect(() => {
+    tripContext.resetTrigger;
+    if (map) {
+      if (currentOrigin) {
+        map.removeAnnotation(currentOrigin);
+        currentOrigin = undefined;
+      }
+      if (currentDestination) {
+        map.removeAnnotation(currentDestination);
+        currentDestination = undefined;
+      }
+      if (currentRoute) {
+        map.removeOverlay(currentRoute.polyline);
+        currentRoute = undefined;
+      }
+      tripState.route = undefined;
+      snapValue = "148px";
     }
   });
 
@@ -206,7 +309,6 @@
 
       // Create the map
       map = new mapkitInstance.Map(mapElement, {
-        tracksUserLocation: true,
         region: new mapkitInstance.CoordinateRegion(
           new mapkitInstance.Coordinate(
             defaultCoordinates.latitude,
@@ -215,37 +317,34 @@
           new mapkitInstance.CoordinateSpan(defaultDelta, defaultDelta),
         ),
       });
-      // after creating map ensure overlay is on screen??
 
-      map.addEventListener("user-location-change", (event: any) => {
-        console.log("user-location-change", event)
-        if (!tripState.originCoordinate) {
-          tripState.originCoordinate = event.coordinate
-        }
-      })
-      map.addEventListener("user-location-error", () => {
-        map.region = new mapkitInstance.CoordinateRegion(
-          new mapkitInstance.Coordinate(
-            defaultCoordinates.latitude,
-            defaultCoordinates.longitude,
-          ),
-          new mapkitInstance.CoordinateSpan(defaultDelta, defaultDelta),
-        );
-      });
+      // Check if location permission is already granted
+      if (navigator.permissions) {
+        navigator.permissions
+          .query({ name: "geolocation" })
+          .then((result) => {
+            if (result.state === "granted") {
+              map.showsUserLocation = true;
+            }
+          })
+          .catch(() => {
+            // Permissions API not supported or error, do nothing
+          });
+      }
 
       // map.region = region
 
       homezones.forEach((homezone) => {
-        const zone = homezone.zone
-        const items = mapkitInstance.importGeoJSON(zone)
+        const zone = homezone.zone;
+        const items = mapkitInstance.importGeoJSON(zone);
         if (items instanceof Error) {
-          throw items
+          throw items;
         }
 
         if (items) {
-          map.addItems(items as any)
+          map.addItems(items as any);
         }
-      })
+      });
 
       map.overlays.forEach(
         (overlay) =>
@@ -253,7 +352,7 @@
             fillColor: "#00BCE2",
             strokeColor: "#00BCE2",
           })),
-      )
+      );
 
       // If URL params have coordinates, perform calculation
       if (
@@ -263,16 +362,16 @@
         tripContext.params.dest_lat &&
         tripContext.params.dest_lng
       ) {
-        await onSubmit()
+        await onSubmit();
       }
     } catch (error) {
-      console.error("Error initializing Apple Maps:", error)
+      console.error("Error initializing Apple Maps:", error);
     }
-  })
+  });
 </script>
 
 <div class="w-full flex h-full">
-  <div class="hidden md:block md:max-w-96 h-full">
+  <div class="hidden md:block min-w-sm md:max-w-96 h-full">
     <TripSidebar
       bind:originCoordinate={tripState.originCoordinate}
       bind:destinationCoordinate={tripState.destinationCoordinate}
@@ -282,10 +381,11 @@
       bind:electricVehicle={tripState.electricVehicle}
       bind:roundTripRequired={tripState.roundTripRequired}
       bind:vehicleType={tripState.vehicleType}
-      route={tripState.route}
+      bind:route={tripState.route}
       {comparisonResult}
       calculateTripDetails={onSubmit}
       bind:isFormView
+      bind:originIsCurrentLocation
     />
   </div>
   <div class="h-screen w-screen md:w-full md:h-full md:grow">
@@ -305,10 +405,11 @@
       bind:electricVehicle={tripState.electricVehicle}
       bind:roundTripRequired={tripState.roundTripRequired}
       bind:vehicleType={tripState.vehicleType}
-      route={tripState.route}
+      bind:route={tripState.route}
       {comparisonResult}
       calculateTripDetails={onSubmit}
       bind:isFormView
+      bind:originIsCurrentLocation
     />
   </WorkingDrawer>
 {/if}
