@@ -19,6 +19,7 @@
     roundTripRequired = $bindable(),
     vehicleType = $bindable(),
     route = $bindable(),
+    parkingWalkingDistance = $bindable(),
     comparisonResult,
     calculateTripDetails,
     isFormView = $bindable(),
@@ -146,6 +147,18 @@
             bind:value={stayDuration}
             min="0"
             id="stay-duration"
+          />
+        </div>
+
+        <div>
+          <Input
+            labelText="Parking Walking Distance (meters)"
+            placeholder="Walking distance to parking"
+            type="number"
+            bind:value={parkingWalkingDistance}
+            min="0"
+            max="500"
+            id="parking-walking-distance"
           />
         </div>
 

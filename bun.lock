@@ -8,6 +8,8 @@
         "@fontsource/cardo": "^5.2.5",
         "@fontsource/david-libre": "^5.2.5",
         "@lucide/svelte": "^0.488.0",
+        "@turf/boolean-intersects": "^7.3.1",
+        "@turf/circle": "^7.3.1",
         "@turf/points-within-polygon": "^7.2.0",
         "@types/apple-mapkit": "^5.80.0",
         "bits-ui": "^1.3.19",
@@ -233,15 +235,27 @@
 
     "@tailwindcss/vite": ["@tailwindcss/vite@4.0.14", "", { "dependencies": { "@tailwindcss/node": "4.0.14", "@tailwindcss/oxide": "4.0.14", "lightningcss": "1.29.2", "tailwindcss": "4.0.14" }, "peerDependencies": { "vite": "6.2.3" } }, "sha512-y69ztPTRFy+13EPS/7dEFVl7q2Goh1pQueVO8IfGeyqSpcx/joNJXFk0lLhMgUbF0VFJotwRSb9ZY7Xoq3r26Q=="],
 
+    "@turf/boolean-disjoint": ["@turf/boolean-disjoint@7.3.1", "", { "dependencies": { "@turf/boolean-point-in-polygon": "7.3.1", "@turf/helpers": "7.3.1", "@turf/line-intersect": "7.3.1", "@turf/meta": "7.3.1", "@turf/polygon-to-line": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-bqVo+eAYaCq0lcr09zsZdWIAdv22UzGc/h2CCfaBwP5r4o/rFudNFLU9gb9BcM6dBUzrtTgBguShAZr7k3cGbw=="],
+
+    "@turf/boolean-intersects": ["@turf/boolean-intersects@7.3.1", "", { "dependencies": { "@turf/boolean-disjoint": "7.3.1", "@turf/helpers": "7.3.1", "@turf/meta": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-nc6W8qFdzFkfsR6p506HINGu85nHk/Skm+cw3TRQZ5/A44hjf0kYnbhvS3qrCAws3bR+/FKK8O1bsO/Udk8kkg=="],
+
     "@turf/boolean-point-in-polygon": ["@turf/boolean-point-in-polygon@7.2.0", "", { "dependencies": { "@turf/helpers": "7.2.0", "@turf/invariant": "7.2.0", "@types/geojson": "7946.0.16", "point-in-polygon-hao": "1.2.4", "tslib": "2.8.1" } }, "sha512-lvEOjxeXIp+wPXgl9kJA97dqzMfNexjqHou+XHVcfxQgolctoJiRYmcVCWGpiZ9CBf/CJha1KmD1qQoRIsjLaA=="],
 
-    "@turf/helpers": ["@turf/helpers@7.2.0", "", { "dependencies": { "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-cXo7bKNZoa7aC7ydLmUR02oB3IgDe7MxiPuRz3cCtYQHn+BJ6h1tihmamYDWWUlPHgSNF0i3ATc4WmDECZafKw=="],
+    "@turf/circle": ["@turf/circle@7.3.1", "", { "dependencies": { "@turf/destination": "7.3.1", "@turf/helpers": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-UY2OM1OK7IuyrtN3YE8026ZM3xM9VIkqZ0vRZln8g33D0AogrJVJ/I9T81/VpRPlxTnrbDpzQxJQBH+3vPG/Ow=="],
 
-    "@turf/invariant": ["@turf/invariant@7.2.0", "", { "dependencies": { "@turf/helpers": "7.2.0", "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-kV4u8e7Gkpq+kPbAKNC21CmyrXzlbBgFjO1PhrHPgEdNqXqDawoZ3i6ivE3ULJj2rSesCjduUaC/wyvH/sNr2Q=="],
+    "@turf/destination": ["@turf/destination@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@turf/invariant": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-yyiJtbQJ4AB9Ny/FKDDNuWI9Sg4Jtd2PMpQPqOV3AFq8NNkg0xJSNmDHDxupb3oPqPWYPxyfVI3tBoF+Xhhoig=="],
 
-    "@turf/meta": ["@turf/meta@7.2.0", "", { "dependencies": { "@turf/helpers": "7.2.0", "@types/geojson": "7946.0.16" } }, "sha512-igzTdHsQc8TV1RhPuOLVo74Px/hyPrVgVOTgjWQZzt3J9BVseCdpfY/0cJBdlSRI4S/yTmmHl7gAqjhpYH5Yaw=="],
+    "@turf/helpers": ["@turf/helpers@7.3.1", "", { "dependencies": { "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-zkL34JVhi5XhsuMEO0MUTIIFEJ8yiW1InMu4hu/oRqamlY4mMoZql0viEmH6Dafh/p+zOl8OYvMJ3Vm3rFshgg=="],
+
+    "@turf/invariant": ["@turf/invariant@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-IdZJfDjIDCLH+Gu2yLFoSM7H23sdetIo5t4ET1/25X8gi3GE2XSqbZwaGjuZgNh02nisBewLqNiJs2bo+hrqZA=="],
+
+    "@turf/line-intersect": ["@turf/line-intersect@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@types/geojson": "^7946.0.10", "sweepline-intersections": "^1.5.0", "tslib": "^2.8.1" } }, "sha512-HFPH4Hi+rG7XZ5rijkYL5C9JGVKd6gz6TToShVfqOt/qgGY9/bLYQxymgum/MG7sRhIa8xcKff2d57JrIVuSWA=="],
+
+    "@turf/meta": ["@turf/meta@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@types/geojson": "^7946.0.10" } }, "sha512-NWsfOE5RVtWpLQNkfOF/RrYvLRPwwruxhZUV0UFIzHqfiRJ50aO9Y6uLY4bwCUe2TumLJQSR4yaoA72Rmr2mnQ=="],
 
     "@turf/points-within-polygon": ["@turf/points-within-polygon@7.2.0", "", { "dependencies": { "@turf/boolean-point-in-polygon": "7.2.0", "@turf/helpers": "7.2.0", "@turf/meta": "7.2.0", "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-jRKp8/mWNMzA+hKlQhxci97H5nOio9tp14R2SzpvkOt+cswxl+NqTEi1hDd2XetA7tjU0TSoNjEgVY8FfA0S6w=="],
+
+    "@turf/polygon-to-line": ["@turf/polygon-to-line@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@turf/invariant": "7.3.1", "@types/geojson": "^7946.0.10", "tslib": "^2.8.1" } }, "sha512-qTOFzn7SLQ0TcKBsPFAFYz7iiq34ijqinpjyr9fHQlFHRHeWzUXiWyIn5a2uOHazkdhHCEXNX8JPkt6hjdZ/fQ=="],
 
     "@types/apple-mapkit": ["@types/apple-mapkit@5.80.0", "", { "dependencies": { "@types/geojson": "7946.0.16" } }, "sha512-CEpk8aPTa8yMG/026SxmkSEYEvABdH/YxCuiRff+6irwFkV0P/Gub38YKojgH7a+xiFtvFKjVefouf7BoM6vlQ=="],
 
@@ -475,6 +489,8 @@
 
     "sveltekit-superforms": ["sveltekit-superforms@2.24.0", "", { "dependencies": { "devalue": "5.1.1", "memoize-weak": "1.0.2", "ts-deepmerge": "7.0.2" }, "optionalDependencies": { "@exodus/schemasafe": "1.3.0", "@gcornut/valibot-json-schema": "0.31.0", "@sinclair/typebox": "0.34.30", "@typeschema/class-validator": "0.3.0", "@vinejs/vine": "3.0.1", "arktype": "2.1.9", "class-validator": "0.14.1", "effect": "3.13.12", "joi": "17.13.3", "json-schema-to-ts": "3.1.1", "superstruct": "2.0.2", "valibot": "1.0.0-rc.3", "yup": "1.6.1", "zod": "3.24.2", "zod-to-json-schema": "3.24.4" }, "peerDependencies": { "@sveltejs/kit": "2.20.2", "svelte": "5.26.3" } }, "sha512-JuuaaPDn9OHUKc0Uy8jzv1jUZNfO4AHUE0JLcXjiuJNRokYLqC+RsPDL4/jUkqia97aZzrfTgB/meQ8iS5nNJg=="],
 
+    "sweepline-intersections": ["sweepline-intersections@1.5.0", "", { "dependencies": { "tinyqueue": "^2.0.0" } }, "sha512-AoVmx72QHpKtItPu72TzFL+kcYjd67BPLDoR0LarIk+xyaRg+pDTMFXndIEvZf9xEKnJv6JdhgRMnocoG0D3AQ=="],
+
     "tabbable": ["tabbable@6.2.0", "", {}, "sha512-Cat63mxsVJlzYvN51JmVXIgNoUokrIaT2zLclCXjRd8boZ0004U4KCs/sToJ75C6sdlByWxpYnb5Boif1VSFew=="],
 
     "tailwind-merge": ["tailwind-merge@3.0.2", "", {}, "sha512-l7z+OYZ7mu3DTqrL88RiKrKIqO3NcpEO8V/Od04bNpvk0kiIFndGEoqfuzvj4yuhRkHKjRkII2z+KS2HfPcSxw=="],
@@ -490,6 +506,8 @@
     "tinyexec": ["tinyexec@0.3.2", "", {}, "sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA=="],
 
     "tinypool": ["tinypool@1.0.2", "", {}, "sha512-al6n+QEANGFOMf/dmUMsuS5/r9B06uwlyNjZZql/zv8J7ybHCgoihBNORZCY2mzUuAnomQa2JdhyHKzZxPCrFA=="],
+
+    "tinyqueue": ["tinyqueue@2.0.3", "", {}, "sha512-ppJZNDuKGgxzkHihX8v9v9G5f+18gzaTfrukGrq6ueg0lmH4nqVnA2IPG0AEH3jKEk2GRJCUhDoqpoiw3PHLBA=="],
 
     "tinyrainbow": ["tinyrainbow@2.0.0", "", {}, "sha512-op4nsTR47R6p0vMUUoYl/a+ljLFVtlfaXkLQmqfLR1qHma1h/ysYk4hEXZ880bf2CYgTskvTa/e196Vd5dDQXw=="],
 
@@ -542,6 +560,16 @@
     "@sveltejs/vite-plugin-svelte/magic-string": ["magic-string@0.30.17", "", { "dependencies": { "@jridgewell/sourcemap-codec": "1.5.0" } }, "sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA=="],
 
     "@swc/helpers/tslib": ["tslib@2.6.3", "", {}, "sha512-xNvxJEOUiWPGhUuUdQgAJPKOOJfGnIyKySOc09XkKsgdUV/3E2zvwZYdejjmRgPCgcym1juLH3226yA7sEFJKQ=="],
+
+    "@turf/boolean-disjoint/@turf/boolean-point-in-polygon": ["@turf/boolean-point-in-polygon@7.3.1", "", { "dependencies": { "@turf/helpers": "7.3.1", "@turf/invariant": "7.3.1", "@types/geojson": "^7946.0.10", "point-in-polygon-hao": "^1.1.0", "tslib": "^2.8.1" } }, "sha512-BUPW63vE43LctwkgannjmEFTX1KFR/18SS7WzFahJWK1ZoP0s1jrfxGX+pi0BH/3Dd9mA71hkGKDDnj1Ndcz0g=="],
+
+    "@turf/boolean-point-in-polygon/@turf/helpers": ["@turf/helpers@7.2.0", "", { "dependencies": { "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-cXo7bKNZoa7aC7ydLmUR02oB3IgDe7MxiPuRz3cCtYQHn+BJ6h1tihmamYDWWUlPHgSNF0i3ATc4WmDECZafKw=="],
+
+    "@turf/boolean-point-in-polygon/@turf/invariant": ["@turf/invariant@7.2.0", "", { "dependencies": { "@turf/helpers": "7.2.0", "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-kV4u8e7Gkpq+kPbAKNC21CmyrXzlbBgFjO1PhrHPgEdNqXqDawoZ3i6ivE3ULJj2rSesCjduUaC/wyvH/sNr2Q=="],
+
+    "@turf/points-within-polygon/@turf/helpers": ["@turf/helpers@7.2.0", "", { "dependencies": { "@types/geojson": "7946.0.16", "tslib": "2.8.1" } }, "sha512-cXo7bKNZoa7aC7ydLmUR02oB3IgDe7MxiPuRz3cCtYQHn+BJ6h1tihmamYDWWUlPHgSNF0i3ATc4WmDECZafKw=="],
+
+    "@turf/points-within-polygon/@turf/meta": ["@turf/meta@7.2.0", "", { "dependencies": { "@turf/helpers": "7.2.0", "@types/geojson": "7946.0.16" } }, "sha512-igzTdHsQc8TV1RhPuOLVo74Px/hyPrVgVOTgjWQZzt3J9BVseCdpfY/0cJBdlSRI4S/yTmmHl7gAqjhpYH5Yaw=="],
 
     "@vitest/mocker/magic-string": ["magic-string@0.30.17", "", { "dependencies": { "@jridgewell/sourcemap-codec": "1.5.0" } }, "sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA=="],
 

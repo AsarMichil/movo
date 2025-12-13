@@ -23,7 +23,7 @@
   <!-- <Drawer.Overlay class="fixed inset-0 bg-black/40" /> -->
   <Drawer.Portal>
     <Drawer.Content
-      class="fixed bottom-0 inset-x-0 h-full w-full max-h-[97%] flex flex-col bg-stone-50 border-white border-2 border-b-none rounded-t-[10px] px-4"
+      class="fixed bottom-0 inset-x-0 h-full w-full max-h-[97%] flex flex-col bg-stone-50 border-white border-2 border-b-none rounded-t-[10px] px-2"
     >
       <span class="items-center justify-center">
         <Minus class="text-gray-400 mx-auto -mt-5.5 -mb-4.5" size={48} />

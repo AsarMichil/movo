@@ -1,5 +1,6 @@
 // Import date-fns functions at the top of the file
-import pointsWithinPolygon from "@turf/points-within-polygon";
+import circle from "@turf/circle";
+import booleanIntersects from "@turf/boolean-intersects";
 import {
   addDays,
   addHours,
@@ -589,6 +590,7 @@ function optimizeMultipleTrips(trips: TripParameters[]): string {
 export function isInHomeZone(
   homezones: Homezone[],
   coordinate: { latitude: number; longitude: number },
+  walkingDistanceMeters: number = 50,
 ): boolean {
   const point: Feature<Point> = {
     type: "Feature",
@@ -610,11 +612,25 @@ export function isInHomeZone(
 
   console.log(`Number of polygons: ${collection.features.length}`);
 
-  const pointsWithin = pointsWithinPolygon(point, collection);
+  // Create a circle buffer around the point with the specified walking distance
+  const searchCircle = circle(point, walkingDistanceMeters, {
+    units: "meters",
+  });
 
-  console.log(`Number of points within: ${pointsWithin.features.length}`);
+  console.log("TIME START", Date.now());
 
-  return pointsWithin.features.length > 0;
+  // Check if any homezone polygon intersects with the search circle
+  const hasIntersection = collection.features.some((homezonePolygon) =>
+    booleanIntersects(searchCircle, homezonePolygon),
+  );
+
+  console.log("TIME END", Date.now());
+
+  console.log(
+    `Searching with walking distance: ${walkingDistanceMeters}m, found intersection: ${hasIntersection}`,
+  );
+
+  return hasIntersection;
 }
 
 // Export functions for use in your app

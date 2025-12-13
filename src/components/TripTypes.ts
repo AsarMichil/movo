@@ -11,6 +11,7 @@ export interface TripState {
   roundTripRequired: boolean
   route: any | undefined
   vehicleType: "daily_drive" | "large_loadable" | "oversized" | undefined
+  parkingWalkingDistance: number
 }
 type ComparisonError = {
   message: string;

@@ -10,6 +10,7 @@ const TripParamsUrlSchema = z.object({
   dest_lat: z.coerce.number().optional(),
   dest_lng: z.coerce.number().optional(),
   stay_duration: z.coerce.number().optional(),
+  parking_walking_distance: z.coerce.number().optional(),
   bcaa_member: z
     .string()
     .optional()
@@ -29,6 +30,7 @@ export type TripParamsUrl = z.infer<typeof TripParamsUrlSchema>
 
 const DEFAULT_VALUES = {
   stay_duration: 0,
+  parking_walking_distance: 50,
   bcaa_member: false,
   electric_vehicle: false,
   round_trip: false,
@@ -74,6 +76,9 @@ export function buildSearchParams(params: Partial<TripParamsUrl>): URLSearchPara
   }
   if (params.stay_duration !== undefined && params.stay_duration !== DEFAULT_VALUES.stay_duration) {
     searchParams.set("stay_duration", params.stay_duration.toString())
+  }
+  if (params.parking_walking_distance !== undefined && params.parking_walking_distance !== DEFAULT_VALUES.parking_walking_distance) {
+    searchParams.set("parking_walking_distance", params.parking_walking_distance.toString())
   }
   if (params.bcaa_member !== undefined && params.bcaa_member !== DEFAULT_VALUES.bcaa_member) {
     searchParams.set("bcaa_member", params.bcaa_member ? "1" : "0")

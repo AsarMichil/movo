@@ -27,6 +27,7 @@
     roundTripRequired: tripContext.params?.round_trip ?? false,
     route: undefined,
     vehicleType: tripContext.params?.vehicle_type,
+    parkingWalkingDistance: tripContext.params?.parking_walking_distance ?? 50,
   });
 
   let comparisonResult = $state<Promise<ComparisonCalc>>();
@@ -95,6 +96,7 @@
       const endIsInEvoHomeZone = isInHomeZone(
         homezones,
         tripState.destinationCoordinate,
+        tripState.parkingWalkingDistance,
       );
 
       // Store the route for map display
@@ -382,6 +384,7 @@
       bind:roundTripRequired={tripState.roundTripRequired}
       bind:vehicleType={tripState.vehicleType}
       bind:route={tripState.route}
+      bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
       {comparisonResult}
       calculateTripDetails={onSubmit}
       bind:isFormView
@@ -406,6 +409,7 @@
       bind:roundTripRequired={tripState.roundTripRequired}
       bind:vehicleType={tripState.vehicleType}
       bind:route={tripState.route}
+      bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
       {comparisonResult}
       calculateTripDetails={onSubmit}
       bind:isFormView
