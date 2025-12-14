@@ -14,6 +14,7 @@
     value: any | undefined;
     placeholder?: string;
     onLocationSelected?: (coordinate: any, isCurrentLocation: boolean) => void;
+    onInput: () => void;
   };
 
   let {
@@ -21,6 +22,7 @@
     value = $bindable(),
     placeholder,
     onLocationSelected,
+    onInput
   }: Props = $props();
 
   let results = $state<any[]>([]);
@@ -43,6 +45,7 @@
   );
 
   const handleInput: FormEventHandler<HTMLInputElement> = async (event) => {
+    onInput()
     const input = event.currentTarget.value;
     showLocationOption = false;
     controller?.abort();
@@ -183,7 +186,7 @@
 </script>
 
 <div class="relative">
-  <label use:melt={$label} class="hidden md:block text-sm text-gray-700">
+  <label use:melt={$label} class="hidden md:block text-sm text-gray-700 dark:text-gray-300">
     {labelText}
   </label>
   <input
@@ -192,20 +195,20 @@
     onfocus={handleFocus}
     onblur={handleBlur}
     type="text"
-    class=" border-2 border-gray-800 p-1 md:px-2 md:py-3 bg-transparent w-full"
+    class=" border-2 border-gray-800 dark:border-gray-600 p-1 md:px-2 md:py-3 bg-transparent text-gray-800 dark:text-gray-100 w-full"
     {placeholder}
   />
 
   {#if showLocationOption && !isRequestingLocation}
     <ul
       transition:fly={{ y: -10, duration: 100 }}
-      class="absolute top-full left-0 right-0 z-200 bg-white border-2 border-gray-800 shadow-2xl p-2 mt-1"
+      class="absolute top-full left-0 right-0 z-200 bg-white dark:bg-gray-800 border-2 border-gray-800 dark:border-gray-600 shadow-2xl p-2 mt-1"
     >
       <li>
         <button
           type="button"
           onclick={requestUserLocation}
-          class="w-full text-left p-2 rounded-md cursor-pointer hover:bg-orange-50 flex items-center gap-2"
+          class="w-full text-left p-2 rounded-md cursor-pointer hover:bg-orange-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-800 dark:text-gray-100"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -230,9 +233,9 @@
   {#if showLocationOption && isRequestingLocation}
     <ul
       transition:fly={{ y: -10, duration: 100 }}
-      class="absolute top-full left-0 right-0 z-200 bg-white border-2 border-gray-800 shadow-2xl p-2 mt-1"
+      class="absolute top-full left-0 right-0 z-200 bg-white dark:bg-gray-800 border-2 border-gray-800 dark:border-gray-600 shadow-2xl p-2 mt-1"
     >
-      <li class="p-2 text-gray-600">Getting your location...</li>
+      <li class="p-2 text-gray-600 dark:text-gray-400">Getting your location...</li>
     </ul>
   {/if}
 
@@ -240,12 +243,12 @@
     <ul
       use:melt={$menu}
       transition:fly={{ y: -10, duration: 100 }}
-      class="absolute top-full left-0 right-0 z-200 bg-white border-2 border-gray-800 shadow-2xl p-2 min-h-64 max-h-80 overflow-y-auto mt-1"
+      class="absolute top-full left-0 right-0 z-200 bg-white dark:bg-gray-800 border-2 border-gray-800 dark:border-gray-600 shadow-2xl p-2 min-h-64 max-h-80 overflow-y-auto mt-1"
     >
       {#each items as item (item.id)}
         <li
           use:melt={$option(item.option)}
-          class="p-2 rounded-md cursor-pointer hover:bg-orange-50 data-highlighted:bg-orange-50"
+          class="p-2 rounded-md cursor-pointer hover:bg-orange-50 dark:hover:bg-gray-700 data-highlighted:bg-orange-50 dark:data-highlighted:bg-gray-700 text-gray-800 dark:text-gray-100"
         >
           {#each item.value.displayLines as line, index (index)}
             <p class:text-sm={index !== 0}>{line}</p>

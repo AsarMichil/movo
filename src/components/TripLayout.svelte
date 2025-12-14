@@ -8,6 +8,7 @@
   import { goto } from "$app/navigation";
   import { buildSearchParams } from "../lib/url-params";
   import { getTripContext } from "../lib/trip-context.svelte";
+  import { themeContext } from "../lib/theme-context.svelte";
   import { load, type MapKit } from "@apple/mapkit-loader";
   import type { TripParameters } from "../calculations";
 
@@ -66,8 +67,6 @@
       vehicle_type: tripState.vehicleType,
     });
 
-    goto(`?${searchParams.toString()}`);
-
     // Perform client-side calculations
     tripContext.setIsCalculating(true);
 
@@ -87,9 +86,10 @@
         tripContext.setIsCalculating(false);
         return;
       }
+      tripState.route = result.directions.routes[0];
+      const route = tripState.route;
+      console.log("ARR", route);
 
-      const route = result.directions.routes[0];
-      console.log("ARR",route);
       const travelTimeMinutes =
         Math.round((route.expectedTravelTime / 60) * 100) / 100;
       const tripDistanceKm = Math.ceil(route.distance / 1000);
@@ -100,7 +100,6 @@
       );
 
       // Store the route for map display
-      tripState.route = route;
       console.log("route", tripState.route);
 
       const tripParams: TripParameters = {
@@ -121,6 +120,7 @@
       console.error("Error calculating trip:", error);
     } finally {
       tripContext.setIsCalculating(false);
+      goto(`?${searchParams.toString()}`);
     }
   }
 
@@ -130,7 +130,7 @@
   let originIsCurrentLocation = $state(false);
 
   let mapElement: HTMLDivElement;
-  let map: InstanceType<MapKit["Map"]>;
+  let map: InstanceType<MapKit["Map"]> | undefined = $state();
   let mapkitInstance: MapKit;
   // let routeOverlay: mapkit.Overlay | null = null
   const defaultDelta = 0.1;
@@ -143,6 +143,9 @@
   let snapValue: string | number = $state("148px");
 
   $effect(() => {
+    if (!map) {
+      return;
+    }
     if (
       tripState.originCoordinate &&
       mapkitInstance &&
@@ -182,6 +185,11 @@
   });
 
   $effect(() => {
+    if (!map) {
+      return;
+    }
+    console.log("YIPPEE", tripState.destinationCoordinate, tripState.route);
+
     if (tripState.destinationCoordinate && !tripState.route) {
       console.log("destinationCoordinate", tripState.destinationCoordinate);
       // place marker on map only if no route calculated yet
@@ -280,6 +288,18 @@
     }
   });
 
+  $effect(() => {
+    if (map) {
+      console.log(
+        "Theme changed - isDark:",
+        themeContext.isDarkMode,
+        "colorScheme:",
+        themeContext.mapColorScheme,
+      );
+      map.colorScheme = themeContext.mapColorScheme;
+    }
+  });
+
   onMount(async () => {
     try {
       // Initialize MapKit JS
@@ -318,6 +338,7 @@
           ),
           new mapkitInstance.CoordinateSpan(defaultDelta, defaultDelta),
         ),
+        colorScheme: themeContext.mapColorScheme,
       });
 
       // Check if location permission is already granted
@@ -325,7 +346,7 @@
         navigator.permissions
           .query({ name: "geolocation" })
           .then((result) => {
-            if (result.state === "granted") {
+            if (result.state === "granted" && map) {
               map.showsUserLocation = true;
             }
           })
@@ -344,7 +365,7 @@
         }
 
         if (items) {
-          map.addItems(items as any);
+          map?.addItems(items as any);
         }
       });
 
@@ -393,7 +414,10 @@
   </div>
   <div class="h-screen w-screen md:w-full md:h-full md:grow">
     <!-- <div class="w-full h-full bg-green-500"></div> -->
-    <div class="w-full h-full" bind:this={mapElement}></div>
+    <div
+      class="w-full md:h-full h-[calc(100%-54px)]"
+      bind:this={mapElement}
+    ></div>
   </div>
 </div>
 

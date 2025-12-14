@@ -1,10 +1,16 @@
 <script lang="ts">
-  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public";
-  import { load } from "@apple/mapkit-loader";
-  import { Toaster } from "svelte-sonner";
+  import { Toaster } from "svelte-sonner"
+  import { themeContext } from "../lib/theme-context.svelte"
+  import { browser } from "$app/environment"
 
-  import "../app.css";
-  let { children } = $props();
+  import "../app.css"
+  let { children } = $props()
+
+  $effect(() => {
+    if (browser) {
+      document.documentElement.classList.toggle("dark", themeContext.isDarkMode)
+    }
+  })
 </script>
 
 <svelte:head>

@@ -1,11 +1,15 @@
 <script lang="ts">
   import Address from "./Address.svelte";
   import Input from "./Input.svelte";
+  import ThemeToggle from "./ThemeToggle.svelte";
   import type { ComparisonCalc, TripState } from "./TripTypes";
   import { goto } from "$app/navigation";
   import { getTripContext } from "../lib/trip-context.svelte";
+  import { getContext } from "svelte";
 
   const tripContext = getTripContext();
+  const setDrawerValue: ((value: string | number) => void) | undefined =
+    getContext("setDrawerValue");
 
   // Get current location on component mount
   type ExpandedStage = "mini" | "partial" | "full";
@@ -94,13 +98,16 @@
   }
 </script>
 
-<div class="w-full h-full overflow-y-auto md:p-5 bg-stone-50">
+<div class="w-full h-full overflow-y-auto md:p-5 bg-stone-50 dark:bg-gray-900">
   {#if isFormView}
     <!-- Form View -->
     <div class="space-y-6">
-      <h1 class="hidden md:block text-2xl font-bold text-gray-800">
-        Plan Your Trip
-      </h1>
+      <div class="hidden md:flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+          Plan Your Trip
+        </h1>
+        <ThemeToggle />
+      </div>
 
       <div class="space-y-4">
         <div>
@@ -110,6 +117,11 @@
             placeholder="Destination"
             onLocationSelected={(coordinate) => {
               destinationCoordinate = coordinate;
+            }}
+            onInput={() => {
+              if (setDrawerValue) {
+                setDrawerValue(1);
+              }
             }}
           />
         </div>
@@ -122,6 +134,11 @@
             onLocationSelected={(coordinate, isCurrentLocation) => {
               originCoordinate = coordinate;
               originIsCurrentLocation = isCurrentLocation;
+            }}
+            onInput={() => {
+              if (setDrawerValue) {
+                setDrawerValue(1);
+              }
             }}
           />
         </div>
@@ -193,7 +210,9 @@
         {/snippet}
 
         <div class="mt-6">
-          <h3 class="text-sm font-semibold text-gray-700">Options</h3>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Options
+          </h3>
           <div class="flex flex-wrap gap-1 my-1">
             {@render toggleChipComponent(
               roundTripRequired,
@@ -239,7 +258,7 @@
           calculateTripDetails();
           isFormView = false;
         }}
-        class="bg-gray-800 text-orange-50 w-full px-2 py-3 uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:underline"
+        class="bg-gray-800 dark:bg-gray-700 text-orange-50 dark:text-gray-100 w-full px-2 py-3 uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:underline"
       >
         {#if isLoading}
           Calculating...
@@ -266,7 +285,9 @@
           >
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
-          <div class="text-gray-800">Calculating All of the Things...</div>
+          <div class="text-gray-800 dark:text-gray-200">
+            Calculating All of the Things...
+          </div>
         </div>
       </div>
     {:then result}
@@ -282,17 +303,21 @@
         <!-- Results View -->
         <div class="space-y-6">
           <div class="flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800">Trip Results</h1>
-            <button
-              onclick={editForm}
-              class="text-sm text-gray-600 hover:text-gray-800 underline"
-            >
-              Edit Trip
-            </button>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+              Trip Results
+            </h1>
+            <div class="flex items-center gap-2">
+              <button
+                onclick={editForm}
+                class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+              >
+                Edit Trip
+              </button>
+              <ThemeToggle />
+            </div>
           </div>
-
-          <div class="bg-gray-100 p-4 rounded-md space-y-3">
-            <div class="flex justify-between">
+          <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-md space-y-3">
+            <div class="flex justify-between text-gray-800 dark:text-gray-200">
               <span class="font-medium">From:</span>
               {#if origin}
                 <span class="text-right">{origin.displayLines.join(", ")}</span>
@@ -300,31 +325,33 @@
                 <span class="text-right"> Your current location </span>
               {/if}
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-gray-800 dark:text-gray-200">
               <span class="font-medium">To:</span>
               <span class="text-right"
                 >{destination?.displayLines.join(", ")}</span
               >
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-gray-800 dark:text-gray-200">
               <span class="font-medium">Distance:</span>
               <span>{result.data.distance_km?.toFixed(1)} km</span>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-gray-800 dark:text-gray-200">
               <span class="font-medium">Travel Time:</span>
               <span
                 >{Math.round(result.data.travel_time_minutes_one_way)} minutes (one
                 way)</span
               >
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between text-gray-800 dark:text-gray-200">
               <span class="font-medium">Stay Duration:</span>
               <span>{stayDuration ?? 0} minutes</span>
             </div>
           </div>
 
-          <div class="border-t-2 border-gray-200 pt-4">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">
+          <div class="border-t-2 border-gray-200 dark:border-gray-700 pt-4">
+            <h2
+              class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100"
+            >
               Cost Comparison
             </h2>
 
@@ -341,9 +368,11 @@
               </div>
 
               {#snippet costCard(option: CostOption)}
-                <div class="border border-gray-200 rounded-md overflow-hidden">
+                <div
+                  class="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden"
+                >
                   <button
-                    class="w-full bg-gray-800 text-white p-3 font-bold flex justify-between items-center cursor-pointer"
+                    class="w-full bg-gray-800 dark:bg-gray-700 text-white p-3 font-bold flex justify-between items-center cursor-pointer"
                     onclick={() =>
                       option.setExpandedStage(
                         toggleExpandedStage(option.expandedStage),
@@ -411,17 +440,21 @@
                   {#if option.expandedStage === "full"}
                     <div class="p-3 bg-inherit">
                       <div
-                        class="border border-gray-200 bg-gray-200 rounded-md p-1 flex flex-col gap-1"
+                        class="border border-gray-200 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 rounded-md p-1 flex flex-col gap-1"
                       >
                         {#each option.details as detail}
-                          <span class="text-sm">{detail}</span>
+                          <span class="text-sm text-gray-800 dark:text-gray-200"
+                            >{detail}</span
+                          >
                         {/each}
                       </div>
                     </div>
                   {/if}
 
                   {#if option.expandedStage === "partial" || option.expandedStage === "full"}
-                    <div class="p-3 space-y-2 bg-inherit">
+                    <div
+                      class="p-3 space-y-2 bg-inherit text-gray-800 dark:text-gray-200"
+                    >
                       <div class="flex justify-between text-sm">
                         <span>Time cost:</span>
                         <span>${option.time_cost.toFixed(2)}</span>
@@ -442,7 +475,7 @@
                       </div>
                       {#if option.discounts && option.discounts > 0}
                         <div
-                          class="flex justify-between text-sm text-green-600"
+                          class="flex justify-between text-sm text-green-600 dark:text-green-400"
                         >
                           <span>Discounts:</span>
                           <span>-${option.discounts.toFixed(2)}</span>
@@ -452,8 +485,12 @@
                   {/if}
 
                   <!-- Always visible summary footer -->
-                  <div class="p-3 border-t border-gray-200 bg-white">
-                    <div class="flex justify-between font-medium">
+                  <div
+                    class="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  >
+                    <div
+                      class="flex justify-between font-medium text-gray-800 dark:text-gray-200"
+                    >
                       <span>Total Cost:</span>
                       <span>${option.total.toFixed(2)}</span>
                     </div>

@@ -34,6 +34,7 @@ export const mk = {
           49.28091630159075,
           -123.11395918331695,
         ),
+        limitToCountries: "us,ca"
       })
 
       return await new Promise<any[]>(
