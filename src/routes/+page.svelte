@@ -11,4 +11,6 @@
   setTripContext(urlParams);
 </script>
 
-<TripLayout homezones={data.homezones} />
+<main class="overscroll-none">
+  <TripLayout homezones={data.homezones} />
+</main>
