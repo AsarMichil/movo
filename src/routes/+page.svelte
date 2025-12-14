@@ -1,11 +1,14 @@
 <script lang="ts">
-  import TripLayout from "../components/TripLayout.svelte"
-  import type { PageProps } from "./$types"
-  import { setTripContext } from "../lib/trip-context.svelte"
+  import TripLayout from "../components/TripLayout.svelte";
+  import type { PageProps } from "./$types";
+  import { setTripContext } from "../lib/trip-context.svelte";
+  import { extractParams } from "$lib/url-params";
+  import { page } from "$app/state";
+  const { data }: PageProps = $props();
 
-  const { data }: PageProps = $props()
+  const urlParams = extractParams(page.params);
 
-  setTripContext(data.urlParams)
+  setTripContext(urlParams);
 </script>
 
 <TripLayout homezones={data.homezones} />
