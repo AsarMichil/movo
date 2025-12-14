@@ -412,7 +412,7 @@
       bind:originIsCurrentLocation
     />
   </div>
-  <div class="h-screen w-screen md:w-full md:h-full md:grow">
+  <div class="h-full w-screen md:w-full md:h-full md:grow">
     <!-- <div class="w-full h-full bg-green-500"></div> -->
     <div
       class="w-full md:h-full h-[calc(100%-54px)]"
