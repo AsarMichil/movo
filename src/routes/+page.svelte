@@ -11,6 +11,4 @@
   setTripContext(urlParams);
 </script>
 
-<main>
-  <TripLayout homezones={data.homezones} />
-</main>
+<TripLayout homezones={data.homezones} />
