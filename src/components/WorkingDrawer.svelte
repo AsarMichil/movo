@@ -30,7 +30,7 @@
   <!-- <Drawer.Overlay class="fixed inset-0 bg-black/40" /> -->
   <Drawer.Portal>
     <Drawer.Content
-      class="overscroll-none fixed bottom-0 inset-x-0 h-full w-full max-h-[97%] flex flex-col bg-stone-50 dark:bg-gray-900 border-white dark:border-gray-700 border-2 border-b-none rounded-t-[10px] px-2"
+      class="fixed bottom-0 inset-x-0 h-full w-full max-h-[97%] flex flex-col bg-stone-50 dark:bg-gray-900 border-white dark:border-gray-700 border-2 border-b-none rounded-t-[10px] px-2"
     >
       <span class="items-center justify-center">
         <Minus
