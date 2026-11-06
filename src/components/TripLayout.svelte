@@ -397,8 +397,7 @@
 
   <Dialog.Root bind:open={dialogOpen}>
     <Dialog.Content
-      showCloseButton={false}
-      class="inset-0 translate-x-0 translate-y-0 flex flex-col gap-0 h-dvh w-full max-w-none sm:max-w-none rounded-none ring-0 p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-base bg-stone-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100"
+      class="inset-0 translate-x-0 translate-y-0 flex flex-col gap-0 h-dvh w-full max-w-none sm:max-w-none rounded-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-base bg-stone-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100"
     >
       <div class="flex items-center justify-between px-4 py-3">
         <Dialog.Title class="text-2xl font-bold">
