@@ -6,6 +6,7 @@
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { getTripContext } from "../lib/trip-context.svelte";
+  import { OPTION_LABELS } from "../calculations";
 
   const tripContext = getTripContext();
 
@@ -345,7 +346,7 @@
               <!-- Cheapest Option Highlight -->
               <div class="bg-green-100 p-4 rounded-md">
                 <p class="font-bold text-green-800">
-                  Best Option: {result.data.cheapest_option}
+                  Best Option: {OPTION_LABELS[result.data.cheapest_option]}
                 </p>
                 <p class="text-green-700">
                   You save ${result.data.savings.toFixed(2)} compared to the next

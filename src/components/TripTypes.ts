@@ -1,4 +1,4 @@
-import type { ComparisonResult } from "../calculations"
+import type { ComparisonResult, VehicleClass } from "../calculations"
 import type { MapKit } from "@apple/mapkit-loader"
 
 export interface TripState {
@@ -10,7 +10,7 @@ export interface TripState {
   electricVehicle: boolean
   roundTripRequired: boolean
   route: any | undefined
-  vehicleType: "daily_drive" | "large_loadable" | "oversized" | undefined
+  vehicleType: VehicleClass | undefined
   parkingWalkingDistance: number
   origin: any | undefined
   destination: any | undefined

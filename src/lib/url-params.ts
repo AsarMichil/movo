@@ -1,8 +1,13 @@
-import { z } from "zod";
+import { z } from "zod"
+import type { VehicleClass } from "../calculations/rates"
 
-const VehiclePreferenceSchema = z
-  .enum(["daily_drive", "large_loadable", "oversized"])
-  .optional();
+const VEHICLE_CLASSES = [
+  "daily_drive",
+  "large_loadable",
+  "oversized",
+] as const satisfies readonly VehicleClass[]
+
+const VehiclePreferenceSchema = z.enum(VEHICLE_CLASSES).optional()
 
 const TripParamsUrlSchema = z.object({
   origin_lat: z.coerce.number().optional(),
@@ -34,64 +39,34 @@ const DEFAULT_VALUES = {
   bcaa_member: false,
   electric_vehicle: false,
   round_trip: false,
-  vehicle_type: undefined as
-    | "daily_drive"
-    | "large_loadable"
-    | "oversized"
-    | undefined,
+  vehicle_type: undefined as VehicleClass | undefined,
 };
 
-export function extractParams(
-  params: Record<string, string>,
-): TripParamsUrl | null {
-  const parsed = TripParamsUrlSchema.safeParse(params);
-  if (!parsed.success) {
-    console.error("Failed to parse URL params:", parsed.error);
-    return null;
-  }
-
-  const result = parsed.data;
-
-  if (
-    !result.origin_lat ||
-    !result.origin_lng ||
-    !result.dest_lat ||
-    !result.dest_lng
-  ) {
-    return null;
-  }
-
-  return {
-    ...DEFAULT_VALUES,
-    ...result,
-  };
-}
-
 export function extractParameters(url: URL): TripParamsUrl | null {
-  const params = Object.fromEntries(url.searchParams.entries());
-
-  const parsed = TripParamsUrlSchema.safeParse(params);
+  const parsed = TripParamsUrlSchema.safeParse(
+    Object.fromEntries(url.searchParams.entries()),
+  )
 
   if (!parsed.success) {
-    console.error("Failed to parse URL params:", parsed.error);
-    return null;
+    console.error("Failed to parse URL params:", parsed.error)
+    return null
   }
 
-  const result = parsed.data;
+  const result = parsed.data
 
   if (
-    !result.origin_lat ||
-    !result.origin_lng ||
-    !result.dest_lat ||
-    !result.dest_lng
+    result.origin_lat === undefined ||
+    result.origin_lng === undefined ||
+    result.dest_lat === undefined ||
+    result.dest_lng === undefined
   ) {
-    return null;
+    return null
   }
 
   return {
     ...DEFAULT_VALUES,
     ...result,
-  };
+  }
 }
 
 export function buildSearchParams(

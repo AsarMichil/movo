@@ -75,8 +75,7 @@ describe("url-params", () => {
     expect(extractParameters(toUrl(`${base}&vehicle_type=spaceship`))).toBeNull()
   })
 
-  // KNOWN BUG: truthiness checks treat a coordinate of 0 as missing.
-  it.fails("accepts a coordinate of exactly 0", () => {
+  it("accepts a coordinate of exactly 0", () => {
     const result = extractParameters(
       toUrl(buildSearchParams({ ...coords, dest_lng: 0 })),
     )
