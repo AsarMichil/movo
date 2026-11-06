@@ -142,7 +142,12 @@
 
       const driving_minutes =
         Math.round((route.expectedTravelTime / 60) * 100) / 100
-      const parking = findParking(homezones, destination, form.walkMeters)
+      const parking = findParking(
+        homezones,
+        origin,
+        destination,
+        form.walkMeters,
+      )
 
       trip = {
         origin,

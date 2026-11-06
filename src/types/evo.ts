@@ -14,7 +14,7 @@ const ZoneFeatureSchema = z.object({
 export type Homezone = z.infer<typeof HomezoneSchema>
 export const HomezoneSchema = z.object({
   id: z.string(),
-  name: z.string(),
+  city: z.string(),
   zone: z.object({
     type: z.literal("FeatureCollection"),
     features: z.array(ZoneFeatureSchema),

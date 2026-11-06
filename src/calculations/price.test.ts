@@ -235,10 +235,12 @@ describe("compareCarShareOptions", () => {
 
 describe("findParking", () => {
   const homezones = HomezoneSchema.array().parse(homezonesJson)
+  const downtownVancouver = { latitude: 49.282, longitude: -123.118 }
+  const downtownVictoria = { latitude: 48.4284, longitude: -123.3656 }
 
   it("returns the coordinate itself inside the Vancouver home zone", () => {
     const coordinate = { latitude: 49.282, longitude: -123.118 }
-    expect(findParking(homezones, coordinate, 50)).toEqual({
+    expect(findParking(homezones, coordinate, coordinate, 50)).toEqual({
       ...coordinate,
       distance_meters: 0,
       name: "Vancouver HZ",
@@ -253,16 +255,30 @@ describe("findParking", () => {
       b[1] > a[1] ? b : a,
     )
     const coordinate = { latitude: latitude + 100 / 111_320, longitude }
-    const spot = findParking(homezones, coordinate, 200)
+    const spot = findParking(homezones, downtownVancouver, coordinate, 200)
     expect(spot?.name).toBe("UBC 5782")
     expect(spot?.distance_meters).toBeCloseTo(100, -1)
     expect(spot).toMatchObject({ latitude, longitude })
-    expect(findParking(homezones, coordinate, 50)).toBeNull()
+    expect(findParking(homezones, downtownVancouver, coordinate, 50)).toBeNull()
   })
 
   it("returns null in the Strait of Georgia", () => {
     expect(
-      findParking(homezones, { latitude: 49.25, longitude: -123.3 }, 200),
+      findParking(
+        homezones,
+        downtownVancouver,
+        { latitude: 49.25, longitude: -123.3 },
+        200,
+      ),
     ).toBeNull()
+  })
+
+  it("only parks in the home zone of the city the trip starts in", () => {
+    expect(
+      findParking(homezones, downtownVancouver, downtownVictoria, 200),
+    ).toBeNull()
+    expect(
+      findParking(homezones, downtownVictoria, downtownVictoria, 200),
+    ).toMatchObject({ distance_meters: 0 })
   })
 })
