@@ -4,12 +4,12 @@
   import {
     STAY_CHIPS,
     WALK_CHIPS,
-    WALK_METERS_PER_MINUTE,
     formatDuration,
     fromLocalInput,
     isSameStay,
     stayMinutes,
     toLocalInput,
+    walkMinutes,
   } from "../lib/trip-time"
   import Address from "./Address.svelte"
   import Segmented from "./Segmented.svelte"
@@ -58,7 +58,7 @@
   const walkHint = $derived(
     WALK_CHIPS.some((chip) => chip.meters === form.walkMeters)
       ? `Up to ${form.walkMeters} m`
-      : `Up to ${form.walkMeters} m (about ${Math.max(1, Math.round(form.walkMeters / WALK_METERS_PER_MINUTE))} min)`,
+      : `Up to ${form.walkMeters} m (about ${walkMinutes(form.walkMeters)} min)`,
   )
 
   const canSubmit = $derived(

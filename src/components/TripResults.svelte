@@ -6,11 +6,7 @@
     type CostBreakdown,
     type ModoPlan,
   } from "../calculations"
-  import {
-    formatDuration,
-    formatTime,
-    WALK_METERS_PER_MINUTE,
-  } from "../lib/trip-time"
+  import { formatDuration, formatTime, walkMinutes } from "../lib/trip-time"
   import Segmented from "./Segmented.svelte"
   import TripVerdict from "./TripVerdict.svelte"
   import type { Trip } from "./TripTypes"
@@ -35,9 +31,6 @@
   const arrive = $derived(addMinutes(start_date, driving_minutes))
   const leaveDestination = $derived(addMinutes(arrive, staying_minutes))
   const back = $derived(addMinutes(leaveDestination, driving_minutes))
-  const walkMinutes = $derived(
-    Math.max(1, Math.round(trip.walkMeters / WALK_METERS_PER_MINUTE)),
-  )
   const winner = $derived(
     result.cheapest === "evo" ? "Evo" : MODO_PLAN_LABELS[result.modo_plan],
   )
@@ -116,12 +109,14 @@
         : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
     ]}
   >
-    {#if trip.parking}
-      Park at {trip.parking.name}, about {Math.round(
-        trip.parking.distance_meters,
-      )} m from your destination (the Park Here! pin on the map).
+    {#if !trip.parking}
+      No Evo parking within {walkMinutes(trip.walkMeters)} min walk — Evo must be
+      kept for the stay.
+    {:else if trip.parking.distance_meters === 0}
+      Your destination is inside the Evo home zone — park right there.
     {:else}
-      No Evo parking within {walkMinutes} min walk — Evo must be kept for the stay.
+      Park at {trip.parking.name} (~{Math.round(trip.parking.distance_meters)} m,
+      {walkMinutes(trip.parking.distance_meters)} min walk) — see the Park Here! pin
     {/if}
   </p>
 

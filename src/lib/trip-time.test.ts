@@ -7,6 +7,7 @@ import {
   nextQuarterHour,
   stayMinutes,
   toLocalInput,
+  walkMinutes,
 } from "./trip-time"
 
 const at = (value: string) => new Date(value)
@@ -66,6 +67,12 @@ describe("trip-time", () => {
         { until: at("2026-11-06T10:00") },
       ),
     ).toBe(true)
+  })
+
+  it("rounds walking time to whole minutes, at least 1", () => {
+    expect(walkMinutes(0)).toBe(1)
+    expect(walkMinutes(250)).toBe(3)
+    expect(walkMinutes(800)).toBe(10)
   })
 
   it("formats durations in hours and minutes", () => {

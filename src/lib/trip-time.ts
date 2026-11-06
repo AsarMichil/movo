@@ -73,7 +73,10 @@ export function formatTime(date: Date, reference: Date): string {
   return format(date, sameDay ? "h:mm a" : "EEE h:mm a")
 }
 
-export const WALK_METERS_PER_MINUTE = 80
+const WALK_METERS_PER_MINUTE = 80
+
+export const walkMinutes = (meters: number) =>
+  Math.max(1, Math.round(meters / WALK_METERS_PER_MINUTE))
 
 export const WALK_CHIPS = [
   { minutes: 1, meters: 80 },
