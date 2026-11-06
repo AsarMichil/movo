@@ -3,7 +3,7 @@
   import type { ComparisonCalc, TripState } from "./TripTypes";
   import type { Homezone } from "../types/evo";
   import { MediaQuery } from "svelte/reactivity";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
   import X from "@lucide/svelte/icons/x";
   import { goto } from "$app/navigation";
@@ -124,7 +124,7 @@
     }
   }
 
-  let currentRoute = $state<any | undefined>(undefined);
+  let currentRoute: TripState["route"];
   let currentDestination: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
   let currentOrigin: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
   let originIsCurrentLocation = $state(false);
@@ -256,23 +256,16 @@
     }
   });
 
+  // Only resets re-run this; markers stay because the form keeps its values.
   $effect(() => {
     tripContext.resetTrigger;
-    if (map) {
-      if (currentOrigin) {
-        map.removeAnnotation(currentOrigin);
-        currentOrigin = undefined;
-      }
-      if (currentDestination) {
-        map.removeAnnotation(currentDestination);
-        currentDestination = undefined;
-      }
-      if (currentRoute) {
+    untrack(() => {
+      if (map && currentRoute) {
         map.removeOverlay(currentRoute.polyline);
-        currentRoute = undefined;
       }
+      currentRoute = undefined;
       tripState.route = undefined;
-    }
+    });
   });
 
   $effect(() => {
