@@ -83,7 +83,7 @@
       <ul
         class="mx-3 mb-3 space-y-1 rounded-md bg-gray-100 p-2 text-sm dark:bg-gray-800"
       >
-        {#each cost.details as detail (detail)}
+        {#each cost.details as detail, index (index)}
           <li>{detail}</li>
         {/each}
       </ul>
