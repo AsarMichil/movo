@@ -1,6 +1,6 @@
 <script lang="ts">
   import TripSidebar from "./TripSidebar.svelte";
-  import type { ComparisonCalc, TripState } from "./TripTypes";
+  import type { ComparisonCalc, Place, TripState } from "./TripTypes";
   import type { Homezone } from "../types/evo";
   import { MediaQuery } from "svelte/reactivity";
   import { onMount, untrack } from "svelte";
@@ -278,6 +278,20 @@
     }
   });
 
+  // Shared links only carry coordinates, so label them with an address.
+  function lookupPlace(
+    coordinate: InstanceType<MapKit["Coordinate"]>,
+  ): Promise<Place> {
+    return new Promise((done) => {
+      new mapkitInstance.Geocoder().reverseLookup(coordinate, (_, response) => {
+        const address =
+          response?.results[0]?.formattedAddress ??
+          `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+        done({ coordinate, displayLines: [address] });
+      });
+    });
+  }
+
   onMount(async () => {
     try {
       // Initialize MapKit JS
@@ -296,6 +310,12 @@
         tripState.destinationCoordinate = new mapkitInstance.Coordinate(
           params.dest_lat,
           params.dest_lng,
+        );
+        lookupPlace(tripState.originCoordinate).then(
+          (place) => (tripState.origin ??= place),
+        );
+        lookupPlace(tripState.destinationCoordinate).then(
+          (place) => (tripState.destination ??= place),
         );
       }
 

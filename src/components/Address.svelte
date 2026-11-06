@@ -34,8 +34,8 @@
   const inputId = $props.id()
 
   let results = $state.raw<SearchAutocompleteResult[]>([])
-  let errorMessage = $state<string>()
-  let inputValue = $state(value?.displayLines?.join(" ") ?? "")
+  // Follows the selected place (also when set from a shared link) until the user types
+  let inputValue = $derived(value?.displayLines.join(" ") ?? "")
   let showLocationOption = $state(false)
   let isRequestingLocation = $state(false)
 
@@ -48,7 +48,7 @@
       },
       (error) => {
         if (signal.aborted) return
-        errorMessage = getErrorMessage(error, "Failed to fetch results")
+        toast.error(getErrorMessage(error, "Failed to fetch results"))
       },
     ),
   )
@@ -123,7 +123,6 @@
 
           onLocationSelected?.(coordinate, true)
 
-          inputValue = "Current location"
           value = {
             coordinate,
             displayLines: ["Current location"],
@@ -179,7 +178,7 @@
 <div class="relative">
   <label
     for={inputId}
-    class="hidden md:block text-sm text-gray-700 dark:text-gray-300"
+    class="sr-only md:not-sr-only md:block text-sm text-gray-700 dark:text-gray-300"
   >
     {label}
   </label>
