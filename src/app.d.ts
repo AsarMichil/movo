@@ -10,8 +10,8 @@ declare global {
   }
 
   declare interface Window {
-    initMapKit?: () => void;
+    initMapKit?: () => void
   }
 }
 
-export {};
+export {}

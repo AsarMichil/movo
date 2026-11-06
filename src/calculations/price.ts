@@ -52,7 +52,9 @@ function taxesFor(taxable: number, charges: number, details: string[]) {
   if (charges === 0) return salesTax
   const pvrt = charges * RATES.pvrt.perPeriod
   const pvrtGst = pvrt * RATES.taxes.gst
-  details.push(`PVRT: ${charges} × ${money(RATES.pvrt.perPeriod)} + GST ${money(pvrtGst)}`)
+  details.push(
+    `PVRT: ${charges} × ${money(RATES.pvrt.perPeriod)} + GST ${money(pvrtGst)}`,
+  )
   return salesTax + pvrt + pvrtGst
 }
 
@@ -76,7 +78,9 @@ function dayCoverQuote(days: number): Quote {
     const count = packs.filter((d) => d === pkg.days).length
     if (count === 0) return []
     const name = pkg.days === 1 ? "day" : `${pkg.days}-day package`
-    return [`${count} × ${name} × ${money(pkg.price)} = ${money(count * pkg.price)}`]
+    return [
+      `${count} × ${name} × ${money(pkg.price)} = ${money(count * pkg.price)}`,
+    ]
   })
   return { cost, lines }
 }
@@ -89,10 +93,15 @@ function subDayQuote(minutes: number): Quote {
   const restCost = restAsHour ? perHour : rest * perMinute
   const billedHours = hours + (restAsHour ? 1 : 0)
   const cost = hours * perHour + restCost
-  if (cost >= perDay) return { cost: perDay, lines: [`1 × day × ${money(perDay)}`] }
+  if (cost >= perDay)
+    return { cost: perDay, lines: [`1 × day × ${money(perDay)}`] }
   const lines: string[] = []
-  if (billedHours > 0) lines.push(`${billedHours} h × ${money(perHour)} = ${money(billedHours * perHour)}`)
-  if (rest > 0 && !restAsHour) lines.push(`${rest} min × ${money(perMinute)} = ${money(restCost)}`)
+  if (billedHours > 0)
+    lines.push(
+      `${billedHours} h × ${money(perHour)} = ${money(billedHours * perHour)}`,
+    )
+  if (rest > 0 && !restAsHour)
+    lines.push(`${rest} min × ${money(perMinute)} = ${money(restCost)}`)
   return { cost, lines }
 }
 
@@ -101,7 +110,10 @@ export function evoTimeCost(minutes: number): Quote {
   const rest = minutes % DAY_MINUTES
   const cover = dayCoverQuote(days)
   const partial = subDayQuote(rest)
-  const exact = { cost: cover.cost + partial.cost, lines: [...cover.lines, ...partial.lines] }
+  const exact = {
+    cost: cover.cost + partial.cost,
+    lines: [...cover.lines, ...partial.lines],
+  }
   if (rest === 0) return exact
   const roundedUp = dayCoverQuote(days + 1)
   return roundedUp.cost < exact.cost ? roundedUp : exact
@@ -109,7 +121,9 @@ export function evoTimeCost(minutes: number): Quote {
 
 function evoTrips(params: TripParameters): number[] {
   const drive = Math.ceil(params.driving_minutes)
-  const continuous = Math.ceil(params.driving_minutes * 2 + params.staying_minutes)
+  const continuous = Math.ceil(
+    params.driving_minutes * 2 + params.staying_minutes,
+  )
   if (!params.end_is_in_evo_home_zone) return [continuous]
   if (!params.round_trip_required) return [drive]
   const keepCar = evoCostForTrips([continuous], params.is_bcaa_member)
@@ -117,7 +131,10 @@ function evoTrips(params: TripParameters): number[] {
   return twoTrips.total < keepCar.total ? [drive, drive] : [continuous]
 }
 
-function evoCostForTrips(trips: number[], isBcaaMember: boolean): CostBreakdown {
+function evoCostForTrips(
+  trips: number[],
+  isBcaaMember: boolean,
+): CostBreakdown {
   const details: string[] = []
   let timeCost = 0
   for (const [index, minutes] of trips.entries()) {
@@ -129,10 +146,13 @@ function evoCostForTrips(trips: number[], isBcaaMember: boolean): CostBreakdown 
   details.push(`  - Total time cost: ${money(timeCost)}`)
 
   const fees = RATES.evo.allAccessFee * trips.length
-  details.push(`All access fee: ${money(fees)}${trips.length > 1 ? ` (×${trips.length} trips)` : ""}`)
+  details.push(
+    `All access fee: ${money(fees)}${trips.length > 1 ? ` (×${trips.length} trips)` : ""}`,
+  )
 
   const discounts = isBcaaMember ? timeCost * RATES.evo.bcaaDiscount : 0
-  if (discounts > 0) details.push(`BCAA member discount (10%): -${money(discounts)}`)
+  if (discounts > 0)
+    details.push(`BCAA member discount (10%): -${money(discounts)}`)
 
   const taxable = timeCost - discounts + fees
   const pvrt = trips.reduce((sum, minutes) => sum + pvrtCharges(minutes), 0)
@@ -167,9 +187,15 @@ function freeOvernightIntervals(trip: Interval): Interval[] {
     const y = first.getFullYear()
     const m = first.getMonth()
     const d = first.getDate() + offset
-    const night = { start: new Date(y, m, d, startHour).getTime(), end: new Date(y, m, d + 1, endHour).getTime() }
+    const night = {
+      start: new Date(y, m, d, startHour).getTime(),
+      end: new Date(y, m, d + 1, endHour).getTime(),
+    }
     if (night.start >= trip.end) return free
-    const booked = { start: Math.max(night.start, trip.start), end: Math.min(night.end, trip.end) }
+    const booked = {
+      start: Math.max(night.start, trip.start),
+      end: Math.min(night.end, trip.end),
+    }
     const freeStart = booked.start + maxBilledHours * 3_600_000
     if (freeStart < booked.end) free.push({ start: freeStart, end: booked.end })
   }
@@ -181,7 +207,8 @@ export function calculateModoCost(params: TripParameters): CostBreakdown {
   const rate = hourly[vehicle]
   const { perKm } = RATES.modo
 
-  const minutes = Math.ceil((params.driving_minutes * 2 + params.staying_minutes) / 15) * 15
+  const minutes =
+    Math.ceil((params.driving_minutes * 2 + params.staying_minutes) / 15) * 15
   const start = params.start_date.getTime()
   const trip = { start, end: addMinutes(params.start_date, minutes).getTime() }
   const free = freeOvernightIntervals(trip)
@@ -196,34 +223,61 @@ export function calculateModoCost(params: TripParameters): CostBreakdown {
       end: Math.min(start + (i + 1) * DAY_MINUTES * 60_000, trip.end),
     }
     const blockMinutes = overlapMinutes(block, trip)
-    const freeMinutes = free.reduce((sum, interval) => sum + overlapMinutes(block, interval), 0)
+    const freeMinutes = free.reduce(
+      (sum, interval) => sum + overlapMinutes(block, interval),
+      0,
+    )
     const billedHours = (blockMinutes - freeMinutes) / 60
-    const km = (i === 0 ? params.distance_km : 0) + (i === blockCount - 1 ? params.distance_km : 0)
+    const km =
+      (i === 0 ? params.distance_km : 0) +
+      (i === blockCount - 1 ? params.distance_km : 0)
     const prefix = blockCount > 1 ? `Day ${i + 1}: ` : ""
 
     const hourlyTime = billedHours * rate
     const hourlyDistance = km * perKm
     const dayTripper = hasDayTripper(vehicle)
-      ? { time: RATES.modo.dayTripperPrice[vehicle], distance: Math.max(0, km - dayTripperKm) * perKm }
+      ? {
+          time: RATES.modo.dayTripperPrice[vehicle],
+          distance: Math.max(0, km - dayTripperKm) * perKm,
+        }
       : null
 
-    if (dayTripper && dayTripper.time + dayTripper.distance < hourlyTime + hourlyDistance) {
+    if (
+      dayTripper &&
+      dayTripper.time + dayTripper.distance < hourlyTime + hourlyDistance
+    ) {
       timeCost += dayTripper.time
       distanceCost += dayTripper.distance
-      const overage = dayTripper.distance > 0 ? ` + ${km - dayTripperKm} km × ${money(perKm)}` : ""
+      const overage =
+        dayTripper.distance > 0
+          ? ` + ${km - dayTripperKm} km × ${money(perKm)}`
+          : ""
       const fullDay = blockMinutes < DAY_MINUTES ? "book full day: " : ""
-      details.push(`${prefix}${fullDay}Day Tripper ${money(dayTripper.time)} (${dayTripperKm} km included)${overage}`)
+      details.push(
+        `${prefix}${fullDay}Day Tripper ${money(dayTripper.time)} (${dayTripperKm} km included)${overage}`,
+      )
     } else {
       timeCost += hourlyTime
       distanceCost += hourlyDistance
-      const overnight = freeMinutes > 0 ? ` (overnight capped, ${hoursLabel(freeMinutes)} free)` : ""
-      details.push(`${prefix}${hoursLabel(blockMinutes - freeMinutes)} × ${money(rate)} = ${money(hourlyTime)}${overnight}`)
-      details.push(`${prefix}${km} km × ${money(perKm)} = ${money(hourlyDistance)}`)
+      const overnight =
+        freeMinutes > 0
+          ? ` (overnight capped, ${hoursLabel(freeMinutes)} free)`
+          : ""
+      details.push(
+        `${prefix}${hoursLabel(blockMinutes - freeMinutes)} × ${money(rate)} = ${money(hourlyTime)}${overnight}`,
+      )
+      details.push(
+        `${prefix}${km} km × ${money(perKm)} = ${money(hourlyDistance)}`,
+      )
     }
   }
 
-  const fees = params.is_ev ? RATES.modo.innovationFee.ev : RATES.modo.innovationFee.nonEv
-  details.push(`Co-op innovation fee: ${money(fees)} (${params.is_ev ? "EV" : "non-EV"})`)
+  const fees = params.is_ev
+    ? RATES.modo.innovationFee.ev
+    : RATES.modo.innovationFee.nonEv
+  details.push(
+    `Co-op innovation fee: ${money(fees)} (${params.is_ev ? "EV" : "non-EV"})`,
+  )
   details.push(
     `Fuel surcharge not included (only applies when gas is above ${money(RATES.modo.fuelSurchargeAbovePerLitre)}/L, currently not in effect)`,
   )
@@ -241,7 +295,9 @@ export function calculateModoCost(params: TripParameters): CostBreakdown {
   }
 }
 
-export function compareCarShareOptions(params: TripParameters): ComparisonResult {
+export function compareCarShareOptions(
+  params: TripParameters,
+): ComparisonResult {
   const evo = calculateEvoCost(params)
   const modo = calculateModoCost(params)
   return {

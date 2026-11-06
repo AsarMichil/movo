@@ -35,7 +35,12 @@ type Rates = {
     >
   }
   taxes: { gst: number; pst: number }
-  pvrt: { perPeriod: number; overMinutes: number; periodMinutes: number; exemptFromMinutes: number }
+  pvrt: {
+    perPeriod: number
+    overMinutes: number
+    periodMinutes: number
+    exemptFromMinutes: number
+  }
 }
 
 export const RATES = {
@@ -53,7 +58,12 @@ export const RATES = {
     allAccessFee: 1.85,
     bcaaDiscount: 0.1,
     membership: [
-      { label: "Registration", amount: 35, per: "once", note: "Free for BCAA members" },
+      {
+        label: "Registration",
+        amount: 35,
+        per: "once",
+        note: "Free for BCAA members",
+      },
       { label: "Car share operator fee", amount: 2, per: "year" },
     ],
   },
@@ -70,7 +80,12 @@ export const RATES = {
         hourly: { daily_drive: 5, large_loadable: 7, oversized: 10 },
         dayTripperKm: 500,
         membership: [
-          { label: "Member share", amount: 500, per: "once", note: "Refundable" },
+          {
+            label: "Member share",
+            amount: 500,
+            per: "once",
+            note: "Refundable",
+          },
           { label: "Admin fee", amount: 1, per: "year" },
         ],
       },
@@ -82,7 +97,12 @@ export const RATES = {
     },
   },
   taxes: { gst: 0.05, pst: 0.07 },
-  pvrt: { perPeriod: 1.5, overMinutes: 8 * 60, periodMinutes: 24 * 60, exemptFromMinutes: 28 * 24 * 60 },
+  pvrt: {
+    perPeriod: 1.5,
+    overMinutes: 8 * 60,
+    periodMinutes: 24 * 60,
+    exemptFromMinutes: 28 * 24 * 60,
+  },
 } as const satisfies Rates
 
 export type ModoPlan = keyof typeof RATES.modo.plans
@@ -94,6 +114,8 @@ export const MODO_PLAN_LABELS: Record<ModoPlan, string> = {
   monthly: "Modo Monthly",
 }
 
-export function hasDayTripper(vehicle: VehicleClass): vehicle is DayTripperVehicle {
+export function hasDayTripper(
+  vehicle: VehicleClass,
+): vehicle is DayTripperVehicle {
   return vehicle in RATES.modo.dayTripperPrice
 }

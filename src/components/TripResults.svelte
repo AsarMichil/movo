@@ -52,10 +52,10 @@
 
 {#snippet costCard(label: string, cost: CostBreakdown)}
   <details
-    class="group rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden"
+    class="group overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
   >
     <summary
-      class="flex cursor-pointer list-none items-center justify-between bg-gray-800 dark:bg-gray-700 p-3 font-bold text-white"
+      class="flex cursor-pointer list-none items-center justify-between bg-gray-800 p-3 font-bold text-white dark:bg-gray-700"
     >
       <span>{label}</span>
       <span class="flex items-center gap-2">
@@ -81,7 +81,7 @@
     </dl>
     {#if cost.details.length > 0}
       <ul
-        class="mx-3 mb-3 space-y-1 rounded-md bg-gray-100 dark:bg-gray-800 p-2 text-sm"
+        class="mx-3 mb-3 space-y-1 rounded-md bg-gray-100 p-2 text-sm dark:bg-gray-800"
       >
         {#each cost.details as detail (detail)}
           <li>{detail}</li>
@@ -125,7 +125,7 @@
     {/if}
   </p>
 
-  <dl class="space-y-2 rounded-md bg-gray-100 dark:bg-gray-800 p-4">
+  <dl class="space-y-2 rounded-md bg-gray-100 p-4 dark:bg-gray-800">
     {@render row("From", fromLabel)}
     {@render row("To", toLabel)}
     {@render row("Leave at", formatTime(start_date, new Date()))}

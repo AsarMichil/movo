@@ -41,15 +41,19 @@ class ThemeContext {
 
     this.updateDarkMode()
 
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-      if (this.theme === "system") {
-        this.updateDarkMode()
-      }
-    })
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", () => {
+        if (this.theme === "system") {
+          this.updateDarkMode()
+        }
+      })
   }
 
   private updateDarkMode() {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches
 
     if (this.theme === "system") {
       this.isDarkMode = prefersDark

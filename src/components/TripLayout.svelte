@@ -380,7 +380,7 @@
                 <button
                   type="button"
                   onclick={() => (view = "form")}
-                  class="cursor-pointer text-sm underline text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  class="cursor-pointer text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                 >
                   Edit trip
                 </button>
@@ -388,7 +388,7 @@
                 <button
                   type="button"
                   onclick={() => (view = "results")}
-                  class="cursor-pointer text-sm underline text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  class="cursor-pointer text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                 >
                   View results
                 </button>
@@ -484,7 +484,7 @@
           <button
             type="button"
             onclick={() => openPanel("results")}
-            class="pointer-events-auto cursor-pointer bg-gray-800 px-5 py-3 uppercase text-orange-50 shadow-lg dark:bg-gray-700 dark:text-gray-100"
+            class="pointer-events-auto cursor-pointer bg-gray-800 px-5 py-3 text-orange-50 uppercase shadow-lg dark:bg-gray-700 dark:text-gray-100"
           >
             See details
           </button>
@@ -492,7 +492,7 @@
         <button
           type="button"
           onclick={() => openPanel("form")}
-          class="pointer-events-auto cursor-pointer border-2 border-gray-800 bg-white px-5 py-3 uppercase text-gray-800 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          class="pointer-events-auto cursor-pointer border-2 border-gray-800 bg-white px-5 py-3 text-gray-800 uppercase shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         >
           Edit trip
         </button>
@@ -501,7 +501,7 @@
           type="button"
           disabled={calculating}
           onclick={() => openPanel("form")}
-          class="pointer-events-auto cursor-pointer bg-gray-800 px-6 py-3 uppercase text-orange-50 shadow-lg disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100"
+          class="pointer-events-auto cursor-pointer bg-gray-800 px-6 py-3 text-orange-50 uppercase shadow-lg disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100"
         >
           Plan trip
         </button>

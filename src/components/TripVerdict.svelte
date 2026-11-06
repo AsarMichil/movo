@@ -25,15 +25,15 @@
       class={[
         "flex items-center justify-between gap-3 rounded-full px-4 py-2 shadow-md",
         cheapest
-          ? "bg-white dark:bg-gray-800 ring-2 ring-green-600 dark:ring-green-400"
-          : "bg-white/90 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300",
+          ? "bg-white ring-2 ring-green-600 dark:bg-gray-800 dark:ring-green-400"
+          : "bg-white/90 text-gray-600 dark:bg-gray-800/90 dark:text-gray-300",
       ]}
     >
       <span class="flex items-center gap-2 font-semibold">
         {row.label}
         {#if cheapest}
           <span
-            class="rounded-full bg-green-600 dark:bg-green-500 px-2 py-0.5 text-xs font-medium text-white"
+            class="rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white dark:bg-green-500"
           >
             Cheapest
           </span>

@@ -52,6 +52,8 @@ calculation is client-side. Built with:
 bun dev          # Start dev server (user runs this)
 bun run build    # Build for production (plain `bun build` is Bun's bundler)
 bun run test     # Vitest unit/regression tests
+bun run format   # Prettier write (no semicolons, tailwind class order)
+bun run lint     # Prettier check + svelte-check
 bun run check --output machine  # TypeScript check
 ```
 

@@ -178,7 +178,7 @@
 <div class="relative">
   <label
     for={inputId}
-    class="sr-only md:not-sr-only md:block text-sm text-gray-700 dark:text-gray-300"
+    class="sr-only text-sm text-gray-700 md:not-sr-only md:block dark:text-gray-300"
   >
     {label}
   </label>
@@ -194,19 +194,19 @@
       oninput={handleInput}
       onfocus={handleFocus}
       onblur={handleBlur}
-      class="border-2 border-gray-800 dark:border-gray-600 p-1 md:px-2 md:py-3 bg-transparent text-gray-800 dark:text-gray-100 w-full"
+      class="w-full border-2 border-gray-800 bg-transparent p-1 text-gray-800 md:px-2 md:py-3 dark:border-gray-600 dark:text-gray-100"
       {placeholder}
     />
 
     {#if items.length > 0}
       <Combobox.ContentStatic
-        class="absolute top-full left-0 right-0 z-200 bg-white dark:bg-gray-800 border-2 border-gray-800 dark:border-gray-600 shadow-2xl p-2 min-h-64 max-h-80 overflow-y-auto mt-1"
+        class="absolute top-full right-0 left-0 z-200 mt-1 max-h-80 min-h-64 overflow-y-auto border-2 border-gray-800 bg-white p-2 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
       >
         {#each items as item (item.id)}
           <Combobox.Item
             value={item.id}
             label={item.label}
-            class="p-2 rounded-md cursor-pointer hover:bg-orange-50 dark:hover:bg-gray-700 data-highlighted:bg-orange-50 dark:data-highlighted:bg-gray-700 text-gray-800 dark:text-gray-100"
+            class="cursor-pointer rounded-md p-2 text-gray-800 hover:bg-orange-50 data-highlighted:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700 dark:data-highlighted:bg-gray-700"
           >
             {#each item.result.displayLines as line, index (index)}
               <p class={{ "text-sm": index !== 0 }}>{line}</p>
@@ -220,7 +220,7 @@
   {#if showLocationOption}
     <ul
       transition:fly={{ y: -10, duration: 100 }}
-      class="absolute top-full left-0 right-0 z-200 bg-white dark:bg-gray-800 border-2 border-gray-800 dark:border-gray-600 shadow-2xl p-2 mt-1"
+      class="absolute top-full right-0 left-0 z-200 mt-1 border-2 border-gray-800 bg-white p-2 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
     >
       {#if isRequestingLocation}
         <li class="p-2 text-gray-600 dark:text-gray-400">
@@ -231,7 +231,7 @@
           <button
             type="button"
             onclick={requestUserLocation}
-            class="w-full text-left p-2 rounded-md cursor-pointer hover:bg-orange-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-800 dark:text-gray-100"
+            class="flex w-full cursor-pointer items-center gap-2 rounded-md p-2 text-left text-gray-800 hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

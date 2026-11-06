@@ -3,7 +3,12 @@ import nearestPointOnLine from "@turf/nearest-point-on-line"
 import type { MultiLineString, Polygon } from "geojson"
 import type { Homezone } from "../types/evo"
 
-export type ParkingSpot = { latitude: number; longitude: number; distance_meters: number; name: string }
+export type ParkingSpot = {
+  latitude: number
+  longitude: number
+  distance_meters: number
+  name: string
+}
 
 type Zone = { name: string; polygon: Polygon; outline: MultiLineString }
 
@@ -16,7 +21,10 @@ function zonesOf(homezones: Homezone[]): Zone[] {
       homezone.zone.features.map((feature) => ({
         name: feature.properties.name,
         polygon: feature.geometry,
-        outline: { type: "MultiLineString", coordinates: feature.geometry.coordinates },
+        outline: {
+          type: "MultiLineString",
+          coordinates: feature.geometry.coordinates,
+        },
       })),
     )
     zonesCache.set(homezones, zones)
@@ -32,11 +40,18 @@ export function findParking(
   const point = [coordinate.longitude, coordinate.latitude]
   let best: ParkingSpot | null = null
   for (const zone of zonesOf(homezones)) {
-    if (booleanPointInPolygon(point, zone.polygon)) return { ...coordinate, distance_meters: 0, name: zone.name }
+    if (booleanPointInPolygon(point, zone.polygon))
+      return { ...coordinate, distance_meters: 0, name: zone.name }
     const nearest = nearestPointOnLine(zone.outline, point, { units: "meters" })
     const distance = nearest.properties.pointDistance
-    if (distance <= maxWalkMeters && (!best || distance < best.distance_meters)) {
-      const [longitude, latitude] = nearest.geometry.coordinates as [number, number]
+    if (
+      distance <= maxWalkMeters &&
+      (!best || distance < best.distance_meters)
+    ) {
+      const [longitude, latitude] = nearest.geometry.coordinates as [
+        number,
+        number,
+      ]
       best = { latitude, longitude, distance_meters: distance, name: zone.name }
     }
   }

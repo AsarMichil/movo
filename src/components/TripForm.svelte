@@ -73,7 +73,7 @@
     type="button"
     aria-pressed={pressed}
     {onclick}
-    class="h-8 cursor-pointer border-2 px-3 text-sm font-medium transition-colors border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-700 aria-pressed:bg-gray-800 aria-pressed:border-gray-800 aria-pressed:text-white dark:aria-pressed:bg-gray-600 dark:aria-pressed:border-gray-600"
+    class="h-8 cursor-pointer border-2 border-gray-300 px-3 text-sm font-medium text-gray-600 transition-colors hover:border-gray-700 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white dark:border-gray-600 dark:text-gray-300 dark:aria-pressed:border-gray-600 dark:aria-pressed:bg-gray-600"
   >
     {label}
   </button>
@@ -99,7 +99,7 @@
     />
     <span
       aria-hidden="true"
-      class="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 dark:bg-gray-600 transition-colors peer-checked:bg-gray-800 dark:peer-checked:bg-gray-300 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-gray-800 after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white dark:after:bg-gray-900 after:transition-transform peer-checked:after:translate-x-5"
+      class="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-gray-800 peer-focus-visible:ring-2 peer-focus-visible:ring-gray-800 peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5 dark:bg-gray-600 dark:peer-checked:bg-gray-300 dark:after:bg-gray-900"
     ></span>
   </label>
 {/snippet}
@@ -133,7 +133,7 @@
           () => toLocalInput(form.leaveAt),
           (value) => (form.leaveAt = fromLocalInput(value) ?? form.leaveAt)
         }
-        class="w-full border-2 border-gray-800 dark:border-gray-600 bg-transparent p-2"
+        class="w-full border-2 border-gray-800 bg-transparent p-2 dark:border-gray-600"
       />
     </label>
 
@@ -175,7 +175,7 @@
             if (until) form.stay = { until }
           }
         }
-        class="w-full border-2 border-gray-800 dark:border-gray-600 bg-transparent p-2"
+        class="w-full border-2 border-gray-800 bg-transparent p-2 dark:border-gray-600"
       />
     </label>
     <p class="text-sm text-gray-600 dark:text-gray-400" aria-live="polite">
@@ -238,7 +238,7 @@
     type="button"
     disabled={!canSubmit}
     onclick={onSubmit}
-    class="w-full cursor-pointer bg-gray-800 dark:bg-gray-700 px-2 py-3 uppercase text-orange-50 dark:text-gray-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+    class="w-full cursor-pointer bg-gray-800 px-2 py-3 text-orange-50 uppercase hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100"
   >
     {calculating ? "Calculating..." : "Compare prices"}
   </button>

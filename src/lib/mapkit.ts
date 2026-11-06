@@ -34,11 +34,8 @@ export const mk = {
         includeQueries: false,
         includePointsOfInterest: true,
         includeAddresses: true,
-        coordinate: new mk.Coordinate(
-          49.28091630159075,
-          -123.11395918331695,
-        ),
-        limitToCountries: "us,ca"
+        coordinate: new mk.Coordinate(49.28091630159075, -123.11395918331695),
+        limitToCountries: "us,ca",
       })
 
       return await new Promise<SearchAutocompleteResult[]>(
