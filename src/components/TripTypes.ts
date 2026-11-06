@@ -1,5 +1,11 @@
 import type { ComparisonResult, VehicleClass } from "../calculations"
-import type { MapKit } from "@apple/mapkit-loader"
+import type {
+  DirectionsResponse,
+  MapKit,
+  SearchAutocompleteResult,
+} from "@apple/mapkit-loader"
+
+export type Place = Pick<SearchAutocompleteResult, "coordinate" | "displayLines">
 
 export interface TripState {
   originCoordinate: InstanceType<MapKit["Coordinate"]> | undefined
@@ -9,17 +15,17 @@ export interface TripState {
   bcaaMembership: boolean
   electricVehicle: boolean
   roundTripRequired: boolean
-  route: any | undefined
+  route: DirectionsResponse["routes"][number] | undefined
   vehicleType: VehicleClass | undefined
   parkingWalkingDistance: number
-  origin: any | undefined
-  destination: any | undefined
+  origin: Place | undefined
+  destination: Place | undefined
 }
 type ComparisonError = {
-  message: string;
-  show: boolean;
-};
+  message: string
+  show: boolean
+}
 export type ComparisonCalc = {
-  data: ComparisonResult | null;
-  error: ComparisonError | null;
-};
+  data: ComparisonResult | null
+  error: ComparisonError | null
+}

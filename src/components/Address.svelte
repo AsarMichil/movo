@@ -6,14 +6,22 @@
   import { debounced } from "$lib/debounce"
   import { Combobox } from "bits-ui"
   import { toast } from "svelte-sonner"
-  import { load } from "@apple/mapkit-loader"
+  import {
+    load,
+    type MapKit,
+    type SearchAutocompleteResult,
+  } from "@apple/mapkit-loader"
+  import type { Place } from "./TripTypes"
   import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
 
   type Props = {
     label: string
-    value: any | undefined
+    value: Place | undefined
     placeholder?: string
-    onLocationSelected?: (coordinate: any, isCurrentLocation: boolean) => void
+    onLocationSelected?: (
+      coordinate: InstanceType<MapKit["Coordinate"]>,
+      isCurrentLocation: boolean,
+    ) => void
   }
 
   let {
@@ -25,7 +33,7 @@
 
   const inputId = $props.id()
 
-  let results = $state.raw<any[]>([])
+  let results = $state.raw<SearchAutocompleteResult[]>([])
   let errorMessage = $state<string>()
   let inputValue = $state(value?.displayLines?.join(" ") ?? "")
   let showLocationOption = $state(false)

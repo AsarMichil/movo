@@ -1,4 +1,8 @@
-import { load, type MapKit } from "@apple/mapkit-loader"
+import {
+  load,
+  type MapKit,
+  type SearchAutocompleteResult,
+} from "@apple/mapkit-loader"
 import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
 
 let mapkitInstance: MapKit | null = null
@@ -20,7 +24,7 @@ export const mk = {
     autocomplete: async (
       query: string,
       options?: { signal?: AbortSignal },
-    ): Promise<any[]> => {
+    ): Promise<SearchAutocompleteResult[]> => {
       const { signal } = options ?? {}
 
       const mk = await getMapKit()
@@ -37,11 +41,11 @@ export const mk = {
         limitToCountries: "us,ca"
       })
 
-      return await new Promise<any[]>(
+      return await new Promise<SearchAutocompleteResult[]>(
         (resolve, reject) => {
           const requestId = search.autocomplete(
             query,
-            (error: Error | null, response?: any) => {
+            (error, response) => {
               if (error) {
                 reject(error)
                 return

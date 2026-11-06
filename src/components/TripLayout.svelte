@@ -225,7 +225,7 @@
       currentRoute = tripState.route;
 
       // Update markers
-      const itemsToShow: any[] = [polyline];
+      const itemsToShow: Parameters<typeof map.showItems>[0] = [polyline];
 
       // Add origin marker if not using current location
       if (tripState.originCoordinate && !originIsCurrentLocation) {
