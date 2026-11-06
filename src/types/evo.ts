@@ -1,13 +1,22 @@
-import { zu } from "@infra-blocks/zod-utils";
-import type { FeatureCollection } from "geojson";
-import { z } from "zod";
+import { z } from "zod"
 
-export type Homezone = z.infer<typeof HomezoneSchema>;
+const PositionSchema = z.tuple([z.number(), z.number()])
+
+const ZoneFeatureSchema = z.object({
+  type: z.literal("Feature"),
+  geometry: z.object({
+    type: z.literal("Polygon"),
+    coordinates: z.array(z.array(PositionSchema)),
+  }),
+  properties: z.object({ name: z.string() }),
+})
+
+export type Homezone = z.infer<typeof HomezoneSchema>
 export const HomezoneSchema = z.object({
   id: z.string(),
-  serviceId: z.string(),
-  serviceType: z.string(),
-  serviceVisibility: z.string(),
-  cityId: z.string(),
-  zone: zu.geojson.featureCollection() as z.ZodType<FeatureCollection>,
-});
+  name: z.string(),
+  zone: z.object({
+    type: z.literal("FeatureCollection"),
+    features: z.array(ZoneFeatureSchema),
+  }),
+})
