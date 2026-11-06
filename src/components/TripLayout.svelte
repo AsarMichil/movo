@@ -7,6 +7,7 @@
   import * as Dialog from "$lib/components/ui/dialog";
   import X from "@lucide/svelte/icons/x";
   import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { buildSearchParams } from "../lib/url-params";
   import { getTripContext } from "../lib/trip-context.svelte";
   import { themeContext } from "../lib/theme-context.svelte";
@@ -120,7 +121,7 @@
       console.error("Error calculating trip:", error);
     } finally {
       tripContext.setIsCalculating(false);
-      goto(`?${searchParams.toString()}`, {
+      goto(`${resolve("/")}?${searchParams.toString()}`, {
         replaceState: true,
         keepFocus: true,
         noScroll: true,
