@@ -1,7 +1,9 @@
 ## Project Overview
 
-This is a modern booksmarks and RSS feed reader app built with the following
-technologies:
+Movo compares the cost of a trip on Evo vs Modo car share (Vancouver). The user
+picks origin/destination, Apple MapKit JS computes the route, and
+`src/calculations` prices it per provider. Static site (adapter-static), all
+calculation is client-side. Built with:
 
 - **SvelteKit 2.0** with **Svelte 5** (runes) and **TypeScript strict mode**
 - **Tailwind CSS 4.0** with **shadcn-svelte** UI components
@@ -37,9 +39,10 @@ technologies:
 
 ### File Organization
 
-- Keep components in `apps/web/src/lib/components/`
-- Keep utilities in `apps/web/src/lib/utils/`
-- Static assets in `apps/web/static/`
+- App components in `src/components/`, shadcn primitives in `src/lib/components/ui/`
+- Pricing logic and rate data in `src/calculations/`, tests beside it (`*.test.ts`)
+- Evo home zone GeoJSON in `src/data/evo/`
+- Static assets in `static/`
 
 ## Development Workflow
 
@@ -47,11 +50,9 @@ technologies:
 
 ```bash
 bun dev          # Start dev server (user runs this)
-bun build        # Build for production
-bun test:e2e     # E2E tests
-bun lint:fix     # Lint code
-bun format:fix   # Format code
-bun check --output machine  # TypeScript check
+bun run build    # Build for production (plain `bun build` is Bun's bundler)
+bun run test     # Vitest unit/regression tests
+bun run check --output machine  # TypeScript check
 ```
 
 ## Technology-Specific Guidelines

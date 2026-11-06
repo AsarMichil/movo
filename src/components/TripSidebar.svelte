@@ -4,12 +4,11 @@
   import ThemeToggle from "./ThemeToggle.svelte";
   import type { ComparisonCalc, TripState } from "./TripTypes";
   import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { getTripContext } from "../lib/trip-context.svelte";
-  import { getContext } from "svelte";
+  import { OPTION_LABELS } from "../calculations";
 
   const tripContext = getTripContext();
-  const setDrawerValue: ((value: string | number) => void) | undefined =
-    getContext("setDrawerValue");
 
   // Get current location on component mount
   type ExpandedStage = "mini" | "partial" | "full";
@@ -28,6 +27,8 @@
     calculateTripDetails,
     isFormView = $bindable(),
     originIsCurrentLocation = $bindable(),
+    origin = $bindable(),
+    destination = $bindable(),
   }: TripState & {
     comparisonResult: Promise<ComparisonCalc> | undefined;
     calculateTripDetails: () => void;
@@ -35,12 +36,6 @@
     originIsCurrentLocation: boolean;
   } = $props();
 
-  let origin = $state<any | undefined>(undefined);
-  let destination = $state<any | undefined>(undefined);
-
-  $inspect(originCoordinate, destinationCoordinate, origin, destination);
-
-  $inspect(roundTripRequired);
   $effect(() => {
     if (origin) {
       originCoordinate = origin.coordinate;
@@ -89,7 +84,7 @@
     modoMonthlyExpandedStage = "mini";
     modoPlusExpandedStage = "mini";
     tripContext.triggerReset();
-    goto("/", { replaceState: true });
+    goto(resolve("/"), { replaceState: true });
   }
 
   // Function to toggle boolean chip values
@@ -118,11 +113,6 @@
             onLocationSelected={(coordinate) => {
               destinationCoordinate = coordinate;
             }}
-            onInput={() => {
-              if (setDrawerValue) {
-                setDrawerValue(1);
-              }
-            }}
           />
         </div>
 
@@ -134,11 +124,6 @@
             onLocationSelected={(coordinate, isCurrentLocation) => {
               originCoordinate = coordinate;
               originIsCurrentLocation = isCurrentLocation;
-            }}
-            onInput={() => {
-              if (setDrawerValue) {
-                setDrawerValue(1);
-              }
             }}
           />
         </div>
@@ -302,8 +287,10 @@
       {:else}
         <!-- Results View -->
         <div class="space-y-6">
-          <div class="flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+          <div class="flex justify-end md:justify-between items-center">
+            <h1
+              class="hidden md:block text-2xl font-bold text-gray-800 dark:text-gray-100"
+            >
               Trip Results
             </h1>
             <div class="flex items-center gap-2">
@@ -359,7 +346,7 @@
               <!-- Cheapest Option Highlight -->
               <div class="bg-green-100 p-4 rounded-md">
                 <p class="font-bold text-green-800">
-                  Best Option: {result.data.cheapest_option}
+                  Best Option: {OPTION_LABELS[result.data.cheapest_option]}
                 </p>
                 <p class="text-green-700">
                   You save ${result.data.savings.toFixed(2)} compared to the next
@@ -442,7 +429,7 @@
                       <div
                         class="border border-gray-200 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 rounded-md p-1 flex flex-col gap-1"
                       >
-                        {#each option.details as detail}
+                        {#each option.details as detail (detail)}
                           <span class="text-sm text-gray-800 dark:text-gray-200"
                             >{detail}</span
                           >

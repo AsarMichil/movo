@@ -1,20 +1,20 @@
 import { getContext, setContext } from "svelte"
 import type { ComparisonResult } from "../calculations"
-import type { TripParamsUrl } from "./url-params"
+import type { SharedTrip } from "./url-params"
 
 export interface TripStore {
-  params: TripParamsUrl | null
+  params: SharedTrip | null
   calculations: ComparisonResult | null
   isCalculating: boolean
 }
 
 class TripContext {
-  params = $state<TripParamsUrl | null>(null)
+  params = $state<SharedTrip | null>(null)
   calculations = $state<ComparisonResult | null>(null)
   isCalculating = $state(false)
   resetTrigger = $state(0)
 
-  setParams(params: TripParamsUrl | null) {
+  setParams(params: SharedTrip | null) {
     this.params = params
   }
 
@@ -34,7 +34,7 @@ class TripContext {
 
 const TRIP_CONTEXT_KEY = Symbol("trip-context")
 
-export function setTripContext(initialParams: TripParamsUrl | null = null): TripContext {
+export function setTripContext(initialParams: SharedTrip | null = null): TripContext {
   const context = new TripContext()
   context.setParams(initialParams)
   setContext(TRIP_CONTEXT_KEY, context)

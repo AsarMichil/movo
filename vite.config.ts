@@ -6,4 +6,8 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [sveltekit(), tailwindcss()],
+  test: {
+    include: ["src/**/*.test.ts"],
+    env: { TZ: "America/Vancouver" },
+  },
 });

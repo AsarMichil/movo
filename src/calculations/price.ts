@@ -1,646 +1,261 @@
-// Import date-fns functions at the top of the file
-import circle from "@turf/circle";
-import booleanIntersects from "@turf/boolean-intersects";
+import { addMinutes, startOfDay } from "date-fns"
 import {
-  addDays,
-  addHours,
-  addMinutes,
-  areIntervalsOverlapping,
-  differenceInMinutes,
-  eachDayOfInterval,
-  eachMinuteOfInterval,
-  interval,
-  isWithinInterval,
-  startOfDay,
-} from "date-fns";
-import type { Feature, FeatureCollection, Point, Polygon } from "geojson";
-import type { Homezone } from "../types/evo";
+  hasDayTripper,
+  RATES,
+  type CarShareOption,
+  type ModoPlan,
+  type VehicleClass,
+} from "./rates"
 
-// Define the types for our parameters and results
-
-interface TripParameters {
-  start_date: Date;
-  driving_minutes: number; // Trip driving duration in minutes one way
-  staying_minutes: number; // Trip stay duration in minutes
-  distance_km: number; // Trip distance in kilometers one way
-  is_bcaa_member: boolean; // Whether the user is a BCAA member
-  vehicle_preference?:
-    | "daily_drive"
-    | "large_loadable"
-    | "oversized"
-    | undefined; // Vehicle preference
-  end_is_in_evo_home_zone: boolean; // Whether the end of the trip is in the Evo home zone
-  round_trip_required: boolean; // Whether a round trip is required
-  is_ev?: boolean | undefined; // Whether using an electric vehicle (for Modo innovation fee)
+export interface TripParameters {
+  start_date: Date
+  driving_minutes: number // one way
+  staying_minutes: number
+  distance_km: number // one way
+  is_bcaa_member: boolean
+  vehicle_preference?: VehicleClass | undefined
+  end_is_in_evo_home_zone: boolean
+  round_trip_required: boolean
+  is_ev?: boolean | undefined
 }
 
-interface ModoProps {
-  start_date: Date;
-  minutes: number;
-  km: number;
-  vehicle_type: "daily_drive" | "large_loadable" | "oversized";
+export interface CostBreakdown {
+  time_cost: number
+  distance_cost: number
+  fees: number
+  taxes: number // GST + PST + PVRT (and GST on PVRT)
+  discounts: number
+  total: number
+  details: string[]
 }
 
-interface CostBreakdown {
-  time_cost: number; // Cost for time/duration
-  distance_cost: number; // Cost for distance
-  fees: number; // Additional fees
-  taxes: number; // Taxes
-  discounts: number; // Applied discounts
-  total: number; // Total cost
-  details: string[]; // Explanation of calculations
+export type ComparisonResult = Record<CarShareOption, CostBreakdown> & {
+  cheapest_option: CarShareOption
+  savings: number // vs the next cheapest option
+  distance_km: number
+  travel_time_minutes_one_way: number
 }
 
-interface Modo24HourCost {
-  time_cost: number;
-  distance_cost: number;
-  day_tripper_cost: number;
-  day_tripper_distance_overage_cost: number;
-  day_tripper_applied: boolean;
-  total: number;
-  details: string[];
+const DAY_MINUTES = 24 * 60
+const SALES_TAX = RATES.taxes.gst + RATES.taxes.pst
+
+const money = (amount: number) => `$${amount.toFixed(2)}`
+const hoursLabel = (minutes: number) => `${+(minutes / 60).toFixed(2)} h`
+
+export function pvrtCharges(minutes: number): number {
+  const { minMinutes, periodMinutes } = RATES.pvrt
+  if (minutes < minMinutes) return 0
+  return 1 + Math.floor((minutes - minMinutes) / periodMinutes)
 }
 
-interface ComparisonResult {
-  evo: CostBreakdown;
-  modo_plus: CostBreakdown;
-  modo_monthly: CostBreakdown;
-  modo_business: CostBreakdown;
-  cheapest_option: string;
-  savings: number; // Savings compared to next cheapest option
-  distance_km: number;
-  travel_time_minutes_one_way: number;
+function taxesFor(taxable: number, charges: number, details: string[]) {
+  const salesTax = taxable * SALES_TAX
+  details.push(`GST + PST: ${money(salesTax)}`)
+  if (charges === 0) return salesTax
+  const pvrt = charges * RATES.pvrt.perPeriod
+  const pvrtGst = pvrt * RATES.taxes.gst
+  details.push(`PVRT: ${charges} × ${money(RATES.pvrt.perPeriod)} + GST ${money(pvrtGst)}`)
+  return salesTax + pvrt + pvrtGst
 }
 
-const EIGHT_HOURS_IN_MINUTES = 480;
-const TWELVE_HOURS_IN_MINUTES = 720;
-const FULL_DAY_IN_MINUTES = 1440;
+type Quote = { cost: number; lines: string[] }
 
-// Constants for car share rates
-const EVO_RATES = {
-  per_minute: 0.49,
-  per_hour: 17.99,
-  per_day: 104.99,
-  all_access_fee: 1.85,
-  bcaa_discount: 0.1, // 10%
-};
+function cheapestDayCover(days: number): { cost: number; packs: number[] } {
+  const best = [{ cost: 0, packs: [] as number[] }]
+  for (let i = 1; i <= days; i++) {
+    const options = RATES.evo.packages.map((pkg) => {
+      const prev = best[Math.max(0, i - pkg.days)]!
+      return { cost: prev.cost + pkg.price, packs: [...prev.packs, pkg.days] }
+    })
+    best.push(options.reduce((a, b) => (b.cost < a.cost ? b : a)))
+  }
+  return best[days]!
+}
 
-const MINUTES_TO_BE_WORTH_UNLOCK_FEE =
-  EVO_RATES.all_access_fee / EVO_RATES.per_minute;
+function dayCoverQuote(days: number): Quote {
+  const { cost, packs } = cheapestDayCover(days)
+  const lines = RATES.evo.packages.flatMap((pkg) => {
+    const count = packs.filter((d) => d === pkg.days).length
+    if (count === 0) return []
+    const name = pkg.days === 1 ? "day" : `${pkg.days}-day package`
+    return [`${count} × ${name} × ${money(pkg.price)} = ${money(count * pkg.price)}`]
+  })
+  return { cost, lines }
+}
 
-const MODO_RATES = {
-  plus: {
-    daily_drive: 5,
-    large_loadable: 7,
-    oversized: 10,
-    day_tripper: {
-      daily_drive: 100,
-      large_loadable: 135,
-      km_included: 500,
-    },
-  },
-  monthly: {
-    daily_drive: 6,
-    large_loadable: 8,
-    oversized: 11,
-    day_tripper: {
-      daily_drive: 100,
-      large_loadable: 135,
-      km_included: 250,
-    },
-  },
-  business: {
-    daily_drive: 6,
-    large_loadable: 8,
-    oversized: 11,
-    day_tripper: {
-      daily_drive: 100,
-      large_loadable: 135,
-      km_included: 250,
-    },
-  },
-  per_km: 0.35,
-  innovation_fee: {
-    ev: 1,
-    non_ev: 3,
-  },
-  open_return_fee: 3,
-};
+function subDayQuote(minutes: number): Quote {
+  const { perMinute, perHour, perDay } = RATES.evo
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  const restAsHour = rest * perMinute >= perHour
+  const restCost = restAsHour ? perHour : rest * perMinute
+  const billedHours = hours + (restAsHour ? 1 : 0)
+  const cost = hours * perHour + restCost
+  if (cost >= perDay) return { cost: perDay, lines: [`1 × day × ${money(perDay)}`] }
+  const lines: string[] = []
+  if (billedHours > 0) lines.push(`${billedHours} h × ${money(perHour)} = ${money(billedHours * perHour)}`)
+  if (rest > 0 && !restAsHour) lines.push(`${rest} min × ${money(perMinute)} = ${money(restCost)}`)
+  return { cost, lines }
+}
 
-const TAXES = {
-  gst: 0.05,
-  pst: 0.07,
-  pvrt: 1.5, // Per day for trips 8+ hours
-};
+export function evoTimeCost(minutes: number): Quote {
+  const days = Math.floor(minutes / DAY_MINUTES)
+  const rest = minutes % DAY_MINUTES
+  const cover = dayCoverQuote(days)
+  const partial = subDayQuote(rest)
+  const exact = { cost: cover.cost + partial.cost, lines: [...cover.lines, ...partial.lines] }
+  if (rest === 0) return exact
+  const roundedUp = dayCoverQuote(days + 1)
+  return roundedUp.cost < exact.cost ? roundedUp : exact
+}
 
-// Define constants for overnight time range
-const OVERNIGHT_START_HOUR = 18; // 6pm
-const OVERNIGHT_END_HOUR = 9; // 9am
+function evoTrips(params: TripParameters): number[] {
+  const drive = Math.ceil(params.driving_minutes)
+  const continuous = Math.ceil(params.driving_minutes * 2 + params.staying_minutes)
+  if (!params.end_is_in_evo_home_zone) return [continuous]
+  if (!params.round_trip_required) return [drive]
+  const keepCar = evoCostForTrips([continuous], params.is_bcaa_member)
+  const twoTrips = evoCostForTrips([drive, drive], params.is_bcaa_member)
+  return twoTrips.total < keepCar.total ? [drive, drive] : [continuous]
+}
 
-/**
- * Calculate the cost for Evo car share
- */
-function calculateEvoCost(params: TripParameters): CostBreakdown {
-  const details: string[] = [];
+function evoCostForTrips(trips: number[], isBcaaMember: boolean): CostBreakdown {
+  const details: string[] = []
+  let timeCost = 0
+  for (const [index, minutes] of trips.entries()) {
+    const quote = evoTimeCost(minutes)
+    if (trips.length > 1) details.push(`Trip ${index + 1} (${minutes} min):`)
+    details.push(...quote.lines.map((line) => `  - ${line}`))
+    timeCost += quote.cost
+  }
+  details.push(`  - Total time cost: ${money(timeCost)}`)
 
-  // Calculate time-based cost using a more intelligent approach
-  let timeCost: number;
+  const fees = RATES.evo.allAccessFee * trips.length
+  details.push(`All access fee: ${money(fees)}${trips.length > 1 ? ` (×${trips.length} trips)` : ""}`)
 
-  // Calculate full days, remaining hours, and remaining minutes
-  let usedMinutes: number;
-  let fullDays: number;
-  let remainingMinutes: number;
-  let remainingHours: number;
-  let finalRemainingMinutes: number;
+  const discounts = isBcaaMember ? timeCost * RATES.evo.bcaaDiscount : 0
+  if (discounts > 0) details.push(`BCAA member discount (10%): -${money(discounts)}`)
 
-  let doubleUnlockFee = false;
+  const taxable = timeCost - discounts + fees
+  const pvrt = trips.reduce((sum, minutes) => sum + pvrtCharges(minutes), 0)
+  const taxes = taxesFor(taxable, pvrt, details)
 
-  // if not in home zone you are cooked anyways
-  if (!params.end_is_in_evo_home_zone) {
-    usedMinutes = params.driving_minutes * 2 + params.staying_minutes;
-  } else {
-    if (params.round_trip_required) {
-      if (params.staying_minutes > MINUTES_TO_BE_WORTH_UNLOCK_FEE) {
-        usedMinutes = params.driving_minutes * 2;
-        doubleUnlockFee = true;
-      } else {
-        usedMinutes = params.driving_minutes * 2 + params.staying_minutes;
-      }
+  return {
+    time_cost: timeCost,
+    distance_cost: 0,
+    fees,
+    taxes,
+    discounts,
+    total: taxable + taxes,
+    details,
+  }
+}
+
+export function calculateEvoCost(params: TripParameters): CostBreakdown {
+  return evoCostForTrips(evoTrips(params), params.is_bcaa_member)
+}
+
+type Interval = { start: number; end: number }
+
+const overlapMinutes = (a: Interval, b: Interval) =>
+  Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start)) / 60_000
+
+// Within each 9pm-7am window only the first 3 booked hours are billed.
+function freeOvernightIntervals(trip: Interval): Interval[] {
+  const { startHour, endHour, maxBilledHours } = RATES.modo.overnight
+  const first = startOfDay(trip.start)
+  const free: Interval[] = []
+  for (let offset = -1; ; offset++) {
+    const y = first.getFullYear()
+    const m = first.getMonth()
+    const d = first.getDate() + offset
+    const night = { start: new Date(y, m, d, startHour).getTime(), end: new Date(y, m, d + 1, endHour).getTime() }
+    if (night.start >= trip.end) return free
+    const booked = { start: Math.max(night.start, trip.start), end: Math.min(night.end, trip.end) }
+    const freeStart = booked.start + maxBilledHours * 3_600_000
+    if (freeStart < booked.end) free.push({ start: freeStart, end: booked.end })
+  }
+}
+
+export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostBreakdown {
+  const vehicle = params.vehicle_preference ?? "daily_drive"
+  const { hourly, dayTripperKm } = RATES.modo.plans[plan]
+  const rate = hourly[vehicle]
+  const { perKm } = RATES.modo
+
+  const minutes = Math.ceil((params.driving_minutes * 2 + params.staying_minutes) / 15) * 15
+  const start = params.start_date.getTime()
+  const trip = { start, end: addMinutes(params.start_date, minutes).getTime() }
+  const free = freeOvernightIntervals(trip)
+  const blockCount = Math.max(1, Math.ceil(minutes / DAY_MINUTES))
+
+  const details: string[] = []
+  let timeCost = 0
+  let distanceCost = 0
+  for (let i = 0; i < blockCount; i++) {
+    const block = {
+      start: start + i * DAY_MINUTES * 60_000,
+      end: Math.min(start + (i + 1) * DAY_MINUTES * 60_000, trip.end),
+    }
+    const blockMinutes = overlapMinutes(block, trip)
+    const freeMinutes = free.reduce((sum, interval) => sum + overlapMinutes(block, interval), 0)
+    const billedHours = (blockMinutes - freeMinutes) / 60
+    const km = (i === 0 ? params.distance_km : 0) + (i === blockCount - 1 ? params.distance_km : 0)
+    const prefix = blockCount > 1 ? `Day ${i + 1}: ` : ""
+
+    const hourlyTime = billedHours * rate
+    const hourlyDistance = km * perKm
+    const dayTripper = hasDayTripper(vehicle)
+      ? { time: RATES.modo.dayTripperPrice[vehicle], distance: Math.max(0, km - dayTripperKm) * perKm }
+      : null
+
+    if (dayTripper && dayTripper.time + dayTripper.distance < hourlyTime + hourlyDistance) {
+      timeCost += dayTripper.time
+      distanceCost += dayTripper.distance
+      const overage = dayTripper.distance > 0 ? ` + ${km - dayTripperKm} km × ${money(perKm)}` : ""
+      details.push(`${prefix}Day Tripper ${money(dayTripper.time)} (${dayTripperKm} km included)${overage}`)
     } else {
-      usedMinutes = params.driving_minutes;
+      timeCost += hourlyTime
+      distanceCost += hourlyDistance
+      const overnight = freeMinutes > 0 ? ` (overnight capped, ${hoursLabel(freeMinutes)} free)` : ""
+      details.push(`${prefix}${hoursLabel(blockMinutes - freeMinutes)} × ${money(rate)} = ${money(hourlyTime)}${overnight}`)
+      details.push(`${prefix}${km} km × ${money(perKm)} = ${money(hourlyDistance)}`)
     }
   }
-  console.log("usedMinutes", usedMinutes);
-  const roundedToNearestMinute = Math.ceil(usedMinutes);
-  fullDays = Math.floor(roundedToNearestMinute / (24 * 60));
-  remainingMinutes = roundedToNearestMinute % (24 * 60);
-  remainingHours = Math.floor(remainingMinutes / 60);
-  finalRemainingMinutes = remainingMinutes % 60;
 
-  // Calculate costs for different rate combinations // cheapest option is always per_day -> per_hour -> per_minute
-  const dayRateCost = fullDays * EVO_RATES.per_day;
-  const hourRateCost = remainingHours * EVO_RATES.per_hour;
-  const minuteRateCost = finalRemainingMinutes * EVO_RATES.per_minute;
+  const fees = params.is_ev ? RATES.modo.innovationFee.ev : RATES.modo.innovationFee.nonEv
+  details.push(`Co-op innovation fee: ${money(fees)} (${params.is_ev ? "EV" : "non-EV"})`)
+  details.push("Fuel surcharge not included")
 
-  // Calculate combined cost (days + hours + minutes)
-  const combinedCost = dayRateCost + hourRateCost + minuteRateCost;
-
-  timeCost = combinedCost;
-
-  // Add details based on the chosen pricing structure
-  if (fullDays > 0) {
-    details.push(
-      `  - ${fullDays} full days × $${EVO_RATES.per_day.toFixed(2)} = $${dayRateCost.toFixed(2)}`,
-    );
-  }
-  if (remainingHours > 0) {
-    details.push(
-      `  - ${remainingHours} hours × $${EVO_RATES.per_hour.toFixed(2)} = $${hourRateCost.toFixed(2)}`,
-    );
-  }
-  if (finalRemainingMinutes > 0) {
-    details.push(
-      `  - ${finalRemainingMinutes} minutes × $${EVO_RATES.per_minute.toFixed(2)} = $${minuteRateCost.toFixed(2)}`,
-    );
-  }
-  details.push(`  - Total time cost: $${timeCost.toFixed(2)}`);
-
-  // Add all access fee
-  const fees = doubleUnlockFee
-    ? EVO_RATES.all_access_fee * 2
-    : EVO_RATES.all_access_fee;
-  details.push(
-    `All access fee: $${fees.toFixed(2)}${
-      doubleUnlockFee ? " (x2, take two trips)" : ""
-    }`,
-  );
-
-  // Apply BCAA discount if applicable
-  let discounts = 0;
-  if (params.is_bcaa_member) {
-    discounts = timeCost * EVO_RATES.bcaa_discount;
-    details.push(`BCAA member discount (10%): -$${discounts.toFixed(2)}`);
-  }
-
-  // Calculate taxes
-  const baseCost = timeCost - discounts + fees;
-
-  let taxAmount = baseCost * (TAXES.gst + TAXES.pst);
-  let pvrtAmount = 0;
-
-  // Add PVRT for trips 8+ hours
-  if (usedMinutes >= EIGHT_HOURS_IN_MINUTES && fullDays < 28) {
-    pvrtAmount = TAXES.pvrt * fullDays;
-    const pvrtTax = pvrtAmount * TAXES.gst;
-    taxAmount += pvrtTax;
-    details.push(
-      `PVRT: $${TAXES.pvrt.toFixed(2)} × ${fullDays} days = $${pvrtAmount.toFixed(2)}`,
-    );
-    details.push(`GST on PVRT: $${pvrtTax.toFixed(2)}`);
-  }
-
-  details.push(
-    `Base taxes (GST + PST): $${(baseCost * (TAXES.gst + TAXES.pst)).toFixed(2)}`,
-  );
-
-  // No distance cost for Evo
-  const distanceCost = 0;
-
-  // Calculate total
-  const total = baseCost + taxAmount + pvrtAmount;
+  const subtotal = timeCost + distanceCost + fees
+  const taxes = taxesFor(subtotal, pvrtCharges(minutes), details)
   return {
     time_cost: timeCost,
     distance_cost: distanceCost,
     fees,
-    taxes: taxAmount + pvrtAmount,
-    discounts,
-    total,
-    details,
-  };
-}
-
-/**
- * Calculate the cost for Modo car share for a 24-hour period
- * @param params - The parameters for the trip
- * @param params.start_date - The start date of the 24 hour period
- * @param params.minutes - The total minutes of the trip rounded up to nearest 15 minutes
- * @param params.km - The km travelled in this 24 hour period
- * @param params.vehicle_type - The type of vehicle to use
- * @param planType - The type of plan to use
- * @returns The cost for the 24 hour period of this trip
- */
-function calculateModo24HourCost(
-  params: ModoProps,
-  planType: "plus" | "monthly" | "business",
-): Modo24HourCost {
-  if (params.minutes > 1440) {
-    throw new Error("Total minutes cannot be greater than 1440");
-  }
-
-  const result: Modo24HourCost = {
-    time_cost: 0,
-    distance_cost: 0,
-    day_tripper_cost: 0,
-    day_tripper_distance_overage_cost: 0,
-    day_tripper_applied: false,
-    total: 0,
-    details: [],
-  };
-  const planRates = MODO_RATES[planType];
-
-  const vehicleType = params.vehicle_type;
-  const hourlyRate = planRates[vehicleType];
-
-  // night minutes
-  let nightMinutes = 0;
-  const overnightInterval = interval(
-    addHours(startOfDay(new Date(params.start_date)), OVERNIGHT_START_HOUR),
-    addDays(
-      addHours(startOfDay(new Date(params.start_date)), OVERNIGHT_END_HOUR),
-      1,
-    ),
-  );
-
-  const endTime = addMinutes(params.start_date, params.minutes);
-  const bookingInterval = interval(params.start_date, endTime);
-  if (areIntervalsOverlapping(bookingInterval, overnightInterval)) {
-    // number of minutes in the overlap
-    const minutesInBookingInterval = eachMinuteOfInterval(bookingInterval);
-    for (const minute of minutesInBookingInterval) {
-      if (isWithinInterval(minute, overnightInterval)) {
-        nightMinutes += 1;
-      }
-    }
-  }
-  const cappedNightMinutes = Math.min(nightMinutes, 180); // 3 hours
-  // if booking has night minutes and has regular minutes, would need to cap both to 12 hours
-  let regularMinutes = params.minutes - nightMinutes;
-
-  const totalAppliedMinutes = regularMinutes + cappedNightMinutes;
-  if (totalAppliedMinutes > TWELVE_HOURS_IN_MINUTES) {
-    regularMinutes = TWELVE_HOURS_IN_MINUTES - cappedNightMinutes;
-  }
-
-  const regularCost = (regularMinutes / 60) * hourlyRate;
-  result.time_cost = regularCost;
-  const overnightCost = (cappedNightMinutes / 60) * hourlyRate;
-  result.time_cost += overnightCost;
-
-  result.distance_cost = params.km * MODO_RATES.per_km;
-
-  result.total = result.time_cost + result.distance_cost;
-
-  if (params.minutes === 1440 && vehicleType !== "oversized") {
-    // check day tripper rate
-    const kmIncluded = planRates.day_tripper.km_included;
-    result.day_tripper_cost = planRates.day_tripper[vehicleType];
-    const excessKm = params.km - kmIncluded;
-    if (excessKm > 0) {
-      result.day_tripper_distance_overage_cost = excessKm * MODO_RATES.per_km;
-    }
-    const totalDayTripperCost =
-      result.day_tripper_cost + result.day_tripper_distance_overage_cost;
-    if (totalDayTripperCost < result.total) {
-      // day tripper rate is cheaper
-      result.day_tripper_applied = true;
-      result.total = totalDayTripperCost;
-      result.details.push(`Day Tripper rate applied`);
-      result.time_cost = 0;
-      result.distance_cost = 0;
-    }
-  }
-
-  if (result.day_tripper_applied) {
-    result.details.push(
-      `Day Tripper rate applied: ${result.day_tripper_cost}${result.day_tripper_distance_overage_cost > 0 ? ` + ${result.day_tripper_distance_overage_cost}` : ""} = $${result.total.toFixed(2)}`,
-    );
-  } else {
-    console.log("cappedNightMinutes", cappedNightMinutes);
-    if (cappedNightMinutes > 0) {
-      result.details.push(
-        `Regular rate applied: ${cappedNightMinutes / 60} hours × $${hourlyRate.toFixed(2)} + ${regularMinutes / 60} hours × $${hourlyRate.toFixed(2)} = $${regularCost.toFixed(2)}`,
-      );
-    } else {
-      result.details.push(
-        `Regular rate applied: ${regularMinutes / 60} hours × $${hourlyRate.toFixed(2)} = $${regularCost.toFixed(2)}`,
-      );
-    }
-
-    // details of distance
-    result.details.push(
-      `Distance cost: ${params.km} km × $${MODO_RATES.per_km.toFixed(2)} = $${result.distance_cost.toFixed(2)}`,
-    );
-  }
-
-  console.log("OAKEPSAOke", result);
-
-  return result;
-}
-
-function calculateModoCost(
-  params: TripParameters,
-  planType: "plus" | "monthly" | "business",
-): CostBreakdown {
-  const vehicle_type = params.vehicle_preference ?? "daily_drive";
-  const totalMinutes = params.driving_minutes * 2 + params.staying_minutes;
-  // round up to 15 minutes
-  const roundedUpTo15Minutes = Math.ceil(totalMinutes / 15) * 15;
-  // split into 24 hour intervals
-  const endDay = addMinutes(params.start_date, roundedUpTo15Minutes);
-  const daysArray = eachDayOfInterval(interval(params.start_date, endDay));
-  // Start of each 24 hour interval
-  const startOfEachInterval = differenceInMinutes(
-    params.start_date,
-    startOfDay(params.start_date),
-  );
-  const results: Modo24HourCost[] = [];
-  for (const [index, day] of daysArray.entries()) {
-    let km = 0;
-    let minutesForDay = FULL_DAY_IN_MINUTES;
-
-    // first day drive to location
-    if (index === 0) {
-      km += params.distance_km;
-    }
-    // last day drive back home if all on the same day, will be double distance!
-    if (index === daysArray.length - 1) {
-      km += params.distance_km;
-      const minutesInDaysBeforeLastDay = index * FULL_DAY_IN_MINUTES;
-      minutesForDay = roundedUpTo15Minutes - minutesInDaysBeforeLastDay;
-    }
-
-    // first and last day
-    const modoProps: ModoProps = {
-      start_date: addMinutes(day, startOfEachInterval),
-      minutes: minutesForDay,
-      km,
-      vehicle_type,
-    };
-    const calculated = calculateModo24HourCost(modoProps, planType);
-    results.push({
-      ...calculated,
-      details: [...calculated.details],
-    });
-    console.log("calculated", calculated);
-  }
-  console.log("adjaiojsoij", results);
-
-  let subtotal = results.reduce((acc, result) => acc + result.total, 0);
-  const time_cost = results.reduce((acc, result) => acc + result.time_cost, 0);
-  const distance_cost = results.reduce(
-    (acc, result) => acc + result.distance_cost,
-    0,
-  );
-  const day_tripper_cost = results.reduce(
-    (acc, result) =>
-      result.day_tripper_applied ? acc + result.day_tripper_cost : acc,
-    0,
-  );
-  const day_tripper_distance_overage_cost = results.reduce(
-    (acc, result) =>
-      result.day_tripper_applied
-        ? acc + result.day_tripper_distance_overage_cost
-        : acc,
-    0,
-  );
-  console.log("bejjjejeejee", [...results]);
-
-  const details: string[] = [];
-  results.forEach((result) => {
-    console.log("result", result);
-    details.push(...result.details);
-  });
-  // add details from each result
-  // details.push(...results.flatMap((result) => result.details));
-  console.log("details", details);
-  // Add innovation fee
-  const innovationFee = params.is_ev
-    ? MODO_RATES.innovation_fee.ev
-    : MODO_RATES.innovation_fee.non_ev;
-  details.push(
-    `Co-op innovation fee: $${innovationFee.toFixed(2)} (${params.is_ev ? "EV" : "non-EV"})`,
-  );
-
-  subtotal += innovationFee;
-
-  let taxAmount = subtotal * (TAXES.gst + TAXES.pst);
-  details.push(
-    `Base taxes (GST + PST): $${(subtotal * (TAXES.gst + TAXES.pst)).toFixed(2)}`,
-  );
-  let pvrtAmount = 0;
-  if (
-    roundedUpTo15Minutes >= EIGHT_HOURS_IN_MINUTES &&
-    roundedUpTo15Minutes < 28 * FULL_DAY_IN_MINUTES
-  ) {
-    pvrtAmount = TAXES.pvrt * daysArray.length;
-    const pvrtTax = pvrtAmount * TAXES.gst;
-    taxAmount += pvrtTax;
-    details.push(
-      `PVRT: $${TAXES.pvrt.toFixed(2)} × ${daysArray.length} days = $${pvrtAmount.toFixed(2)}`,
-    );
-    details.push(`GST on PVRT: $${pvrtTax.toFixed(2)}`);
-  }
-
-  return {
-    time_cost: time_cost + day_tripper_cost,
-    distance_cost: distance_cost + day_tripper_distance_overage_cost,
-    fees: innovationFee,
-    taxes: taxAmount + pvrtAmount,
+    taxes,
     discounts: 0,
-    total: subtotal + taxAmount + pvrtAmount,
+    total: subtotal + taxes,
     details,
-  };
+  }
 }
 
-/**
- * Compare all options and find the cheapest
- */
-function compareCarShareOptions(params: TripParameters): ComparisonResult {
-  // Calculate costs for all options
-  const evoCost = calculateEvoCost(params);
-  const modoPlusCost = calculateModoCost(params, "plus");
-  const modoMonthlyCost = calculateModoCost(params, "monthly");
-  const modoBusinessCost = calculateModoCost(params, "business");
-  // Find the cheapest option
-  const options = [
-    { name: "Evo", cost: evoCost.total },
-    { name: "Modo Plus", cost: modoPlusCost.total },
-    { name: "Modo Monthly", cost: modoMonthlyCost.total },
-    { name: "Modo Business", cost: modoBusinessCost.total },
-  ];
-
-  // Sort by cost
-  options.sort((a, b) => a.cost - b.cost);
-
-  // Calculate savings
-  const cheapest = options[0]!;
-  const nextCheapest = options[1]!;
-  const savings = nextCheapest.cost - cheapest.cost;
-  let travel_time_minutes = params.driving_minutes;
+export function compareCarShareOptions(params: TripParameters): ComparisonResult {
+  const costs: Record<CarShareOption, CostBreakdown> = {
+    evo: calculateEvoCost(params),
+    modo_plus: calculateModoCost(params, "plus"),
+    modo_monthly: calculateModoCost(params, "monthly"),
+    modo_business: calculateModoCost(params, "business"),
+  }
+  const [cheapest, next] = (Object.keys(costs) as CarShareOption[]).sort(
+    (a, b) => costs[a].total - costs[b].total,
+  ) as [CarShareOption, CarShareOption]
 
   return {
-    evo: evoCost,
-    modo_plus: modoPlusCost,
-    modo_monthly: modoMonthlyCost,
-    modo_business: modoBusinessCost,
-    cheapest_option: cheapest.name,
-    savings,
+    ...costs,
+    cheapest_option: cheapest,
+    savings: costs[next].total - costs[cheapest].total,
     distance_km: params.distance_km,
-    travel_time_minutes_one_way: travel_time_minutes,
-  };
+    travel_time_minutes_one_way: params.driving_minutes,
+  }
 }
-
-// Create a function to optimize multiple trips
-function optimizeMultipleTrips(trips: TripParameters[]): string {
-  // For multiple trips, we need to consider membership fees spread across all trips
-
-  // First, calculate the cost of each individual trip with each service
-  const tripResults = trips.map((trip) => compareCarShareOptions(trip));
-
-  // Count how many times each service is the cheapest
-  const serviceCounts = {
-    Evo: 0,
-    "Modo Plus": 0,
-    "Modo Monthly": 0,
-    "Modo Business": 0,
-  };
-
-  tripResults.forEach((result) => {
-    serviceCounts[result.cheapest_option as keyof typeof serviceCounts]++;
-  });
-
-  // Calculate total costs for different membership strategies
-  const totalEvoCost = trips.reduce(
-    (sum, trip) => sum + calculateEvoCost(trip).total,
-    0,
-  );
-
-  const totalModoPlusCost = trips.reduce(
-    (sum, trip) => sum + calculateModoCost(trip, "plus").total,
-    0,
-  );
-  // Add membership cost (amortized) for Modo Plus
-
-  const totalModoMonthlyCost = trips.reduce(
-    (sum, trip) => sum + calculateModoCost(trip, "monthly").total,
-    0,
-  );
-  // Add monthly fee for Modo Monthly
-
-  const totalModoBusinessCost = trips.reduce(
-    (sum, trip) => sum + calculateModoCost(trip, "business").total,
-    0,
-  );
-
-  // Find the best overall strategy
-  const options = [
-    { name: "Evo for all trips", cost: totalEvoCost },
-    { name: "Modo Plus for all trips", cost: totalModoPlusCost },
-    { name: "Modo Monthly for all trips", cost: totalModoMonthlyCost },
-    { name: "Modo Business for all trips", cost: totalModoBusinessCost },
-    // Could also consider mixed strategies here
-  ];
-
-  options.sort((a, b) => a.cost - b.cost);
-  const cheapest = options[0]!;
-
-  return `Best strategy: ${cheapest.name} (Total cost: $${cheapest.cost.toFixed(2)})`;
-}
-
-export function isInHomeZone(
-  homezones: Homezone[],
-  coordinate: { latitude: number; longitude: number },
-  walkingDistanceMeters: number = 50,
-): boolean {
-  const point: Feature<Point> = {
-    type: "Feature",
-    properties: {},
-    geometry: {
-      type: "Point",
-      coordinates: [coordinate.longitude, coordinate.latitude],
-    },
-  };
-
-  const collection: FeatureCollection<Polygon> = {
-    type: "FeatureCollection",
-    features: homezones.flatMap((homezone) =>
-      homezone.zone.features.filter((feature): feature is Feature<Polygon> => {
-        return feature.geometry.type === "Polygon";
-      }),
-    ),
-  };
-
-  console.log(`Number of polygons: ${collection.features.length}`);
-
-  // Create a circle buffer around the point with the specified walking distance
-  const searchCircle = circle(point, walkingDistanceMeters, {
-    units: "meters",
-  });
-
-  console.log("TIME START", Date.now());
-
-  // Check if any homezone polygon intersects with the search circle
-  const hasIntersection = collection.features.some((homezonePolygon) =>
-    booleanIntersects(searchCircle, homezonePolygon),
-  );
-
-  console.log("TIME END", Date.now());
-
-  console.log(
-    `Searching with walking distance: ${walkingDistanceMeters}m, found intersection: ${hasIntersection}`,
-  );
-
-  return hasIntersection;
-}
-
-// Export functions for use in your app
-export {
-  calculateEvoCost,
-  calculateModoCost,
-  compareCarShareOptions,
-  optimizeMultipleTrips,
-  type ComparisonResult,
-  type CostBreakdown,
-  type Modo24HourCost,
-  type TripParameters,
-};
