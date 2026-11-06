@@ -4,7 +4,8 @@
   import type { Homezone } from "../types/evo";
   import { MediaQuery } from "svelte/reactivity";
   import { onMount } from "svelte";
-  import WorkingDrawer from "./WorkingDrawer.svelte";
+  import * as Dialog from "$lib/components/ui/dialog";
+  import X from "@lucide/svelte/icons/x";
   import { goto } from "$app/navigation";
   import { buildSearchParams } from "../lib/url-params";
   import { getTripContext } from "../lib/trip-context.svelte";
@@ -29,10 +30,13 @@
     route: undefined,
     vehicleType: tripContext.params?.vehicle_type,
     parkingWalkingDistance: tripContext.params?.parking_walking_distance ?? 50,
+    origin: undefined,
+    destination: undefined,
   });
 
   let comparisonResult = $state<Promise<ComparisonCalc>>();
   let isFormView = $state(true);
+  let dialogOpen = $state(false);
 
   $effect(() => {
     if (tripContext.calculations) {
@@ -139,8 +143,7 @@
     latitude: 49.28091630159075,
     longitude: -123.11395918331695,
   };
-  const isDesktop = new MediaQuery("(min-width: 768px)");
-  let snapValue: string | number = $state("148px");
+  const isDesktop = new MediaQuery("(min-width: 768px)", true);
 
   $effect(() => {
     if (!map) {
@@ -203,7 +206,6 @@
         ),
       );
       map.addAnnotation(currentDestination);
-      snapValue = 0.4;
       // center map on destination
       map.showItems([currentDestination], {
         animate: true,
@@ -264,7 +266,6 @@
         });
       }
 
-      snapValue = 0.4;
     }
   });
 
@@ -284,7 +285,6 @@
         currentRoute = undefined;
       }
       tripState.route = undefined;
-      snapValue = "148px";
     }
   });
 
@@ -393,102 +393,64 @@
   });
 </script>
 
-<div class="w-full flex h-full">
-  <div class="hidden md:block min-w-sm md:max-w-96 h-full">
-    <TripSidebar
-      bind:originCoordinate={tripState.originCoordinate}
-      bind:destinationCoordinate={tripState.destinationCoordinate}
-      inEvoHomeZone={tripState.inEvoHomeZone}
-      bind:stayDuration={tripState.stayDuration}
-      bind:bcaaMembership={tripState.bcaaMembership}
-      bind:electricVehicle={tripState.electricVehicle}
-      bind:roundTripRequired={tripState.roundTripRequired}
-      bind:vehicleType={tripState.vehicleType}
-      bind:route={tripState.route}
-      bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
-      {comparisonResult}
-      calculateTripDetails={onSubmit}
-      bind:isFormView
-      bind:originIsCurrentLocation
-    />
-  </div>
-  <div class="h-full w-screen md:w-full md:h-full md:grow">
-    <!-- <div class="w-full h-full bg-green-500"></div> -->
-    <div
-      class="w-full md:h-full h-[calc(100%-54px)]"
-      bind:this={mapElement}
-    ></div>
-  </div>
+{#snippet sidebar()}
+  <TripSidebar
+    bind:originCoordinate={tripState.originCoordinate}
+    bind:destinationCoordinate={tripState.destinationCoordinate}
+    inEvoHomeZone={tripState.inEvoHomeZone}
+    bind:stayDuration={tripState.stayDuration}
+    bind:bcaaMembership={tripState.bcaaMembership}
+    bind:electricVehicle={tripState.electricVehicle}
+    bind:roundTripRequired={tripState.roundTripRequired}
+    bind:vehicleType={tripState.vehicleType}
+    bind:route={tripState.route}
+    bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
+    bind:origin={tripState.origin}
+    bind:destination={tripState.destination}
+    {comparisonResult}
+    calculateTripDetails={onSubmit}
+    bind:isFormView
+    bind:originIsCurrentLocation
+  />
+{/snippet}
+
+<div class="relative flex w-full h-full">
+  {#if isDesktop.current}
+    <div class="hidden md:block min-w-sm max-w-96 h-full">
+      {@render sidebar()}
+    </div>
+  {/if}
+  <div class="w-full h-full grow" bind:this={mapElement}></div>
 </div>
 
 {#if !isDesktop.current}
-  <WorkingDrawer {snapValue}>
-    <TripSidebar
-      bind:originCoordinate={tripState.originCoordinate}
-      bind:destinationCoordinate={tripState.destinationCoordinate}
-      inEvoHomeZone={tripState.inEvoHomeZone}
-      bind:stayDuration={tripState.stayDuration}
-      bind:bcaaMembership={tripState.bcaaMembership}
-      bind:electricVehicle={tripState.electricVehicle}
-      bind:roundTripRequired={tripState.roundTripRequired}
-      bind:vehicleType={tripState.vehicleType}
-      bind:route={tripState.route}
-      bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
-      {comparisonResult}
-      calculateTripDetails={onSubmit}
-      bind:isFormView
-      bind:originIsCurrentLocation
-    />
-  </WorkingDrawer>
-{/if}
+  <button
+    type="button"
+    onclick={() => (dialogOpen = true)}
+    class="md:hidden fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 px-6 py-3 uppercase shadow-lg cursor-pointer bg-gray-800 dark:bg-gray-700 text-orange-50 dark:text-gray-100"
+  >
+    {isFormView ? "Plan trip" : "View results"}
+  </button>
 
-<!-- <Drawer.Root snapPoints={["88px", "400px", 1]} activeSnapPoint={activeSnapPoint}>
-  <Drawer.Trigger>Open</Drawer.Trigger>
-  <Drawer.Content>
-    <Drawer.Header>
-      <Drawer.Title>Are you sure absolutely sure?</Drawer.Title>
-      <Drawer.Description>This action cannot be undone.</Drawer.Description>
-    </Drawer.Header>
-    <Drawer.Footer>
-      <Button>Submit</Button>
-      <Drawer.Close>Cancel</Drawer.Close>
-    </Drawer.Footer>
-  </Drawer.Content>
-</Drawer.Root> -->
-
-<!-- <Drawer.Root
-  snapPoints={["78px", "400px", 1]}
-  bind:activeSnapPoint
->
-  <Drawer.Trigger>Open</Drawer.Trigger>
-
-  <Drawer.Portal>
-    <Drawer.Overlay />
-
-    <Drawer.Content
-      class="bg-stone-50 fixed flex flex-col rounded-t-[10px] bottom-0 left-0 right-0 h-full max-h-[97%] mx-[-1px] md:hidden"
+  <Dialog.Root bind:open={dialogOpen}>
+    <Dialog.Content
+      showCloseButton={false}
+      class="inset-0 translate-x-0 translate-y-0 flex flex-col gap-0 h-dvh w-full max-w-none sm:max-w-none rounded-none ring-0 p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-base bg-stone-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100"
     >
-      <div
-        class={"flex flex-col max-w-md mx-auto w-full p-2 min-h-[400px] " +
-          (activeSnapPoint === "1" ? "overflow-y-auto" : "overflow-hidden")}
-      >
-        <div>Hello</div>
-        
-        <TripSidebar
-          bind:originCoordinate={tripState.originCoordinate}
-          bind:destinationCoordinate={tripState.destinationCoordinate}
-          inEvoHomeZone={tripState.inEvoHomeZone}
-          bind:stayDuration={tripState.stayDuration}
-          bind:bcaaMembership={tripState.bcaaMembership}
-          bind:electricVehicle={tripState.electricVehicle}
-          bind:roundTripRequired={tripState.roundTripRequired}
-          bind:vehicleType={tripState.vehicleType}
-          route={tripState.route}
-          {comparisonResult}
-          calculateTripDetails={onSubmit}
-        />
+      <div class="flex items-center justify-between px-4 py-3">
+        <Dialog.Title class="text-2xl font-bold">
+          {isFormView ? "Plan Your Trip" : "Trip Results"}
+        </Dialog.Title>
+        <Dialog.Close
+          class="p-2 rounded-md cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
+        >
+          <X class="size-6" />
+          <span class="sr-only">Close</span>
+        </Dialog.Close>
       </div>
-    </Drawer.Content>
-    class="fixed inset-0 bg-black/40 md:hidden"
-  </Drawer.Portal>
-</Drawer.Root> -->
+      <div class="min-h-0 flex-1 px-4 pb-4">
+        {@render sidebar()}
+      </div>
+    </Dialog.Content>
+  </Dialog.Root>
+{/if}
