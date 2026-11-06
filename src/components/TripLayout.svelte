@@ -92,7 +92,6 @@
       }
       tripState.route = result.directions.routes[0];
       const route = tripState.route;
-      console.log("ARR", route);
 
       const travelTimeMinutes =
         Math.round((route.expectedTravelTime / 60) * 100) / 100;
@@ -102,9 +101,6 @@
         tripState.destinationCoordinate,
         tripState.parkingWalkingDistance,
       );
-
-      // Store the route for map display
-      console.log("route", tripState.route);
 
       const tripParams: TripParameters = {
         start_date: new Date(),
@@ -154,7 +150,6 @@
       mapkitInstance &&
       !originIsCurrentLocation
     ) {
-      console.log(tripState.originCoordinate);
       // Remove old origin marker if exists
       if (currentOrigin) {
         map.removeAnnotation(currentOrigin);
@@ -191,10 +186,7 @@
     if (!map) {
       return;
     }
-    console.log("YIPPEE", tripState.destinationCoordinate, tripState.route);
-
     if (tripState.destinationCoordinate && !tripState.route) {
-      console.log("destinationCoordinate", tripState.destinationCoordinate);
       // place marker on map only if no route calculated yet
       if (currentDestination) {
         map.removeAnnotation(currentDestination);
@@ -216,14 +208,9 @@
 
   $effect(() => {
     if (tripState.route && mapkitInstance && map) {
-      // Remove old route if exists
-      console.log("1", currentRoute);
-
       if (currentRoute) {
         map.removeOverlay(currentRoute.polyline);
       }
-      console.log("2", tripState.route);
-
       // Style and add the route polyline
       const polyline = tripState.route.polyline;
       polyline.style = new mapkitInstance.Style({
@@ -290,12 +277,6 @@
 
   $effect(() => {
     if (map) {
-      console.log(
-        "Theme changed - isDark:",
-        themeContext.isDarkMode,
-        "colorScheme:",
-        themeContext.mapColorScheme,
-      );
       map.colorScheme = themeContext.mapColorScheme;
     }
   });
