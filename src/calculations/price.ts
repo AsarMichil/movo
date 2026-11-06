@@ -1,11 +1,5 @@
 import { addMinutes, startOfDay } from "date-fns"
-import {
-  hasDayTripper,
-  RATES,
-  type CarShareOption,
-  type ModoPlan,
-  type VehicleClass,
-} from "./rates"
+import { hasDayTripper, RATES, type ModoPlan, type VehicleClass } from "./rates"
 
 export interface TripParameters {
   start_date: Date
@@ -17,6 +11,7 @@ export interface TripParameters {
   end_is_in_evo_home_zone: boolean
   round_trip_required: boolean
   is_ev?: boolean | undefined
+  modo_plan: ModoPlan
 }
 
 export interface CostBreakdown {
@@ -29,9 +24,12 @@ export interface CostBreakdown {
   details: string[]
 }
 
-export type ComparisonResult = Record<CarShareOption, CostBreakdown> & {
-  cheapest_option: CarShareOption
-  savings: number // vs the next cheapest option
+export type ComparisonResult = {
+  evo: CostBreakdown
+  modo: CostBreakdown
+  modo_plan: ModoPlan
+  cheapest: "evo" | "modo"
+  savings: number
   distance_km: number
   travel_time_minutes_one_way: number
 }
@@ -43,9 +41,9 @@ const money = (amount: number) => `$${amount.toFixed(2)}`
 const hoursLabel = (minutes: number) => `${+(minutes / 60).toFixed(2)} h`
 
 export function pvrtCharges(minutes: number): number {
-  const { minMinutes, periodMinutes } = RATES.pvrt
-  if (minutes < minMinutes) return 0
-  return 1 + Math.floor((minutes - minMinutes) / periodMinutes)
+  const { overMinutes, periodMinutes, exemptFromMinutes } = RATES.pvrt
+  if (minutes <= overMinutes || minutes >= exemptFromMinutes) return 0
+  return Math.ceil(minutes / periodMinutes)
 }
 
 function taxesFor(taxable: number, charges: number, details: string[]) {
@@ -177,9 +175,9 @@ function freeOvernightIntervals(trip: Interval): Interval[] {
   }
 }
 
-export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostBreakdown {
+export function calculateModoCost(params: TripParameters): CostBreakdown {
   const vehicle = params.vehicle_preference ?? "daily_drive"
-  const { hourly, dayTripperKm } = RATES.modo.plans[plan]
+  const { hourly, dayTripperKm } = RATES.modo.plans[params.modo_plan]
   const rate = hourly[vehicle]
   const { perKm } = RATES.modo
 
@@ -213,7 +211,8 @@ export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostB
       timeCost += dayTripper.time
       distanceCost += dayTripper.distance
       const overage = dayTripper.distance > 0 ? ` + ${km - dayTripperKm} km × ${money(perKm)}` : ""
-      details.push(`${prefix}Day Tripper ${money(dayTripper.time)} (${dayTripperKm} km included)${overage}`)
+      const fullDay = blockMinutes < DAY_MINUTES ? "book full day: " : ""
+      details.push(`${prefix}${fullDay}Day Tripper ${money(dayTripper.time)} (${dayTripperKm} km included)${overage}`)
     } else {
       timeCost += hourlyTime
       distanceCost += hourlyDistance
@@ -225,7 +224,9 @@ export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostB
 
   const fees = params.is_ev ? RATES.modo.innovationFee.ev : RATES.modo.innovationFee.nonEv
   details.push(`Co-op innovation fee: ${money(fees)} (${params.is_ev ? "EV" : "non-EV"})`)
-  details.push("Fuel surcharge not included")
+  details.push(
+    `Fuel surcharge not included (only applies when gas is above ${money(RATES.modo.fuelSurchargeAbovePerLitre)}/L, currently not in effect)`,
+  )
 
   const subtotal = timeCost + distanceCost + fees
   const taxes = taxesFor(subtotal, pvrtCharges(minutes), details)
@@ -241,20 +242,14 @@ export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostB
 }
 
 export function compareCarShareOptions(params: TripParameters): ComparisonResult {
-  const costs: Record<CarShareOption, CostBreakdown> = {
-    evo: calculateEvoCost(params),
-    modo_plus: calculateModoCost(params, "plus"),
-    modo_monthly: calculateModoCost(params, "monthly"),
-    modo_business: calculateModoCost(params, "business"),
-  }
-  const [cheapest, next] = (Object.keys(costs) as CarShareOption[]).sort(
-    (a, b) => costs[a].total - costs[b].total,
-  ) as [CarShareOption, CarShareOption]
-
+  const evo = calculateEvoCost(params)
+  const modo = calculateModoCost(params)
   return {
-    ...costs,
-    cheapest_option: cheapest,
-    savings: costs[next].total - costs[cheapest].total,
+    evo,
+    modo,
+    modo_plan: params.modo_plan,
+    cheapest: evo.total <= modo.total ? "evo" : "modo",
+    savings: Math.abs(evo.total - modo.total),
     distance_km: params.distance_km,
     travel_time_minutes_one_way: params.driving_minutes,
   }
