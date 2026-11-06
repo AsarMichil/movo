@@ -120,7 +120,11 @@
       console.error("Error calculating trip:", error);
     } finally {
       tripContext.setIsCalculating(false);
-      goto(`?${searchParams.toString()}`);
+      goto(`?${searchParams.toString()}`, {
+        replaceState: true,
+        keepFocus: true,
+        noScroll: true,
+      });
     }
   }
 
@@ -283,24 +287,16 @@
         libraries: ["services", "full-map", "geojson", "user-location"],
       });
 
-      // Initialize coordinates from URL params if available
-      if (tripContext.params) {
-        if (
-          !tripState.originCoordinate &&
-          tripContext.params.origin_lat &&
-          tripContext.params.origin_lng
-        ) {
-          tripState.originCoordinate = new mapkitInstance.Coordinate(
-            tripContext.params.origin_lat,
-            tripContext.params.origin_lng,
-          );
-        }
-        if (tripContext.params.dest_lat && tripContext.params.dest_lng) {
-          tripState.destinationCoordinate = new mapkitInstance.Coordinate(
-            tripContext.params.dest_lat,
-            tripContext.params.dest_lng,
-          );
-        }
+      const params = tripContext.params;
+      if (params) {
+        tripState.originCoordinate = new mapkitInstance.Coordinate(
+          params.origin_lat,
+          params.origin_lng,
+        );
+        tripState.destinationCoordinate = new mapkitInstance.Coordinate(
+          params.dest_lat,
+          params.dest_lng,
+        );
       }
 
       // Create the map
@@ -351,14 +347,7 @@
           })),
       );
 
-      // If URL params have coordinates, perform calculation
-      if (
-        tripContext.params &&
-        tripContext.params.origin_lat &&
-        tripContext.params.origin_lng &&
-        tripContext.params.dest_lat &&
-        tripContext.params.dest_lng
-      ) {
+      if (params) {
         await onSubmit();
       }
     } catch (error) {

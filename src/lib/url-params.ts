@@ -29,9 +29,9 @@ const TripParamsUrlSchema = z.object({
     .optional()
     .transform((val) => val === "true" || val === "1"),
   vehicle_type: VehiclePreferenceSchema,
-});
+})
 
-export type TripParamsUrl = z.infer<typeof TripParamsUrlSchema>;
+export type TripParamsUrl = z.infer<typeof TripParamsUrlSchema>
 
 const DEFAULT_VALUES = {
   stay_duration: 0,
@@ -40,9 +40,12 @@ const DEFAULT_VALUES = {
   electric_vehicle: false,
   round_trip: false,
   vehicle_type: undefined as VehicleClass | undefined,
-};
+}
 
-export function extractParameters(url: URL): TripParamsUrl | null {
+export type SharedTrip = TripParamsUrl &
+  Record<"origin_lat" | "origin_lng" | "dest_lat" | "dest_lng", number>
+
+export function extractParameters(url: URL): SharedTrip | null {
   const parsed = TripParamsUrlSchema.safeParse(
     Object.fromEntries(url.searchParams.entries()),
   )
@@ -52,45 +55,48 @@ export function extractParameters(url: URL): TripParamsUrl | null {
     return null
   }
 
-  const result = parsed.data
-
+  const { origin_lat, origin_lng, dest_lat, dest_lng } = parsed.data
   if (
-    result.origin_lat === undefined ||
-    result.origin_lng === undefined ||
-    result.dest_lat === undefined ||
-    result.dest_lng === undefined
+    origin_lat === undefined ||
+    origin_lng === undefined ||
+    dest_lat === undefined ||
+    dest_lng === undefined
   ) {
     return null
   }
 
   return {
     ...DEFAULT_VALUES,
-    ...result,
+    ...parsed.data,
+    origin_lat,
+    origin_lng,
+    dest_lat,
+    dest_lng,
   }
 }
 
 export function buildSearchParams(
   params: Partial<TripParamsUrl>,
 ): URLSearchParams {
-  const searchParams = new URLSearchParams();
+  const searchParams = new URLSearchParams()
 
   if (params.origin_lat !== undefined) {
-    searchParams.set("origin_lat", params.origin_lat.toString());
+    searchParams.set("origin_lat", params.origin_lat.toString())
   }
   if (params.origin_lng !== undefined) {
-    searchParams.set("origin_lng", params.origin_lng.toString());
+    searchParams.set("origin_lng", params.origin_lng.toString())
   }
   if (params.dest_lat !== undefined) {
-    searchParams.set("dest_lat", params.dest_lat.toString());
+    searchParams.set("dest_lat", params.dest_lat.toString())
   }
   if (params.dest_lng !== undefined) {
-    searchParams.set("dest_lng", params.dest_lng.toString());
+    searchParams.set("dest_lng", params.dest_lng.toString())
   }
   if (
     params.stay_duration !== undefined &&
     params.stay_duration !== DEFAULT_VALUES.stay_duration
   ) {
-    searchParams.set("stay_duration", params.stay_duration.toString());
+    searchParams.set("stay_duration", params.stay_duration.toString())
   }
   if (
     params.parking_walking_distance !== undefined &&
@@ -99,32 +105,32 @@ export function buildSearchParams(
     searchParams.set(
       "parking_walking_distance",
       params.parking_walking_distance.toString(),
-    );
+    )
   }
   if (
     params.bcaa_member !== undefined &&
     params.bcaa_member !== DEFAULT_VALUES.bcaa_member
   ) {
-    searchParams.set("bcaa_member", params.bcaa_member ? "1" : "0");
+    searchParams.set("bcaa_member", params.bcaa_member ? "1" : "0")
   }
   if (
     params.electric_vehicle !== undefined &&
     params.electric_vehicle !== DEFAULT_VALUES.electric_vehicle
   ) {
-    searchParams.set("electric_vehicle", params.electric_vehicle ? "1" : "0");
+    searchParams.set("electric_vehicle", params.electric_vehicle ? "1" : "0")
   }
   if (
     params.round_trip !== undefined &&
     params.round_trip !== DEFAULT_VALUES.round_trip
   ) {
-    searchParams.set("round_trip", params.round_trip ? "1" : "0");
+    searchParams.set("round_trip", params.round_trip ? "1" : "0")
   }
   if (
     params.vehicle_type !== undefined &&
     params.vehicle_type !== DEFAULT_VALUES.vehicle_type
   ) {
-    searchParams.set("vehicle_type", params.vehicle_type);
+    searchParams.set("vehicle_type", params.vehicle_type)
   }
 
-  return searchParams;
+  return searchParams
 }
