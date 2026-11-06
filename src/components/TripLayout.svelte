@@ -1,439 +1,511 @@
 <script lang="ts">
-  import TripSidebar from "./TripSidebar.svelte";
-  import type { ComparisonCalc, Place, TripState } from "./TripTypes";
-  import type { Homezone } from "../types/evo";
-  import { MediaQuery } from "svelte/reactivity";
-  import { onMount, untrack } from "svelte";
-  import * as Dialog from "$lib/components/ui/dialog";
-  import X from "@lucide/svelte/icons/x";
-  import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
-  import { buildSearchParams } from "../lib/url-params";
-  import { getTripContext } from "../lib/trip-context.svelte";
-  import { themeContext } from "../lib/theme-context.svelte";
-  import { load, type MapKit } from "@apple/mapkit-loader";
-  import type { TripParameters } from "../calculations";
+  import { onMount, untrack } from "svelte"
+  import { MediaQuery } from "svelte/reactivity"
+  import { Dialog } from "bits-ui"
+  import X from "@lucide/svelte/icons/x"
+  import { replaceState } from "$app/navigation"
+  import { resolve } from "$app/paths"
+  import { load, type MapKit } from "@apple/mapkit-loader"
+  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
+  import {
+    calculateDirection,
+    compareCarShareOptions,
+    findParking,
+    type ModoPlan,
+  } from "../calculations"
+  import type { Homezone } from "../types/evo"
+  import {
+    buildSearchParams,
+    DEFAULT_VALUES,
+    type SharedTrip,
+  } from "../lib/url-params"
+  import { getErrorMessage } from "../lib/errors"
+  import { nextQuarterHour, stayMinutes } from "../lib/trip-time"
+  import { themeContext } from "../lib/theme-context.svelte"
+  import ThemeToggle from "./ThemeToggle.svelte"
+  import TripForm from "./TripForm.svelte"
+  import TripResults from "./TripResults.svelte"
+  import TripVerdict from "./TripVerdict.svelte"
+  import type {
+    Coordinate,
+    Place,
+    Trip,
+    TripForm as TripFormState,
+  } from "./TripTypes"
 
-  import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public";
+  type Props = { homezones: Homezone[]; shared: SharedTrip | null }
 
-  const { homezones }: { homezones: Homezone[] } = $props();
+  let { homezones, shared }: Props = $props()
 
-  const tripContext = getTripContext();
+  const initial = untrack(() => shared)
 
-  let tripState = $state<TripState>({
-    originCoordinate: undefined,
-    destinationCoordinate: undefined,
-    stayDuration: tripContext.params?.stay_duration ?? undefined,
-    inEvoHomeZone: false,
-    bcaaMembership: tripContext.params?.bcaa_member ?? false,
-    electricVehicle: tripContext.params?.electric_vehicle ?? false,
-    roundTripRequired: tripContext.params?.round_trip ?? false,
-    route: undefined,
-    vehicleType: tripContext.params?.vehicle_type,
-    parkingWalkingDistance: tripContext.params?.parking_walking_distance ?? 50,
+  let form = $state<TripFormState>({
     origin: undefined,
     destination: undefined,
-  });
+    originIsCurrentLocation: false,
+    leaveAt: initial?.leave_at ?? nextQuarterHour(new Date()),
+    stay: { minutes: initial?.stay_duration ?? 60 },
+    walkMeters:
+      initial?.parking_walking_distance ??
+      DEFAULT_VALUES.parking_walking_distance,
+    bcaaMember: initial?.bcaa_member ?? false,
+    preferEv: initial?.electric_vehicle ?? false,
+    roundTrip: initial?.round_trip ?? false,
+    vehicleType: initial?.vehicle_type,
+    modoPlan: initial?.modo_plan ?? DEFAULT_VALUES.modo_plan,
+  })
 
-  let comparisonResult = $state<Promise<ComparisonCalc>>();
-  let isFormView = $state(true);
-  let dialogOpen = $state(false);
+  // The JS query only gates the mobile dialog; CSS decides what is visible so the first paint is right.
+  const isDesktop = new MediaQuery("(min-width: 768px)", true)
 
-  $effect(() => {
-    if (tripContext.calculations) {
-      comparisonResult = Promise.resolve({
-        data: tripContext.calculations,
-        error: null,
-      });
-      isFormView = false;
-    }
-  });
+  let panelOpen = $state(false)
+  let view = $state<"form" | "results">("form")
+  let calculating = $state(false)
+  let error = $state<string | null>(null)
+  let trip = $state.raw<Trip | null>(null)
 
-  async function onSubmit() {
-    if (!tripState.originCoordinate || !tripState.destinationCoordinate) {
-      console.error("No origin or destination coordinates");
-      return;
-    }
+  const originCoordinate = $derived(form.origin?.coordinate)
+  const destinationCoordinate = $derived(form.destination?.coordinate)
+  // A trip only stays on screen while the form still points at the same places.
+  const activeTrip = $derived(
+    trip &&
+      trip.origin === originCoordinate &&
+      trip.destination === destinationCoordinate
+      ? trip
+      : null,
+  )
+  const result = $derived(
+    activeTrip &&
+      compareCarShareOptions({
+        ...activeTrip.pricing,
+        modo_plan: form.modoPlan,
+      }),
+  )
+  const panelView = $derived(
+    view === "results" && (calculating || error !== null || activeTrip)
+      ? "results"
+      : "form",
+  )
 
-    if (!mapkitInstance) {
-      console.error("MapKit not initialized");
-      return;
-    }
+  const placeLabel = (place: Place | undefined) =>
+    place?.displayLines.join(", ") ?? ""
 
+  function openPanel(next: "form" | "results") {
+    view = next
+    panelOpen = true
+  }
+
+  function syncUrl() {
+    if (!activeTrip) return
+    const { origin, destination, walkMeters, pricing } = activeTrip
     const searchParams = buildSearchParams({
-      origin_lat: tripState.originCoordinate.latitude,
-      origin_lng: tripState.originCoordinate.longitude,
-      dest_lat: tripState.destinationCoordinate.latitude,
-      dest_lng: tripState.destinationCoordinate.longitude,
-      stay_duration: tripState.stayDuration,
-      bcaa_member: tripState.bcaaMembership,
-      electric_vehicle: tripState.electricVehicle,
-      round_trip: tripState.roundTripRequired,
-      vehicle_type: tripState.vehicleType,
-    });
+      origin_lat: origin.latitude,
+      origin_lng: origin.longitude,
+      dest_lat: destination.latitude,
+      dest_lng: destination.longitude,
+      leave_at: pricing.start_date,
+      stay_duration: pricing.staying_minutes,
+      parking_walking_distance: walkMeters,
+      bcaa_member: pricing.is_bcaa_member,
+      electric_vehicle: pricing.is_ev,
+      round_trip: pricing.round_trip_required,
+      vehicle_type: pricing.vehicle_preference,
+      modo_plan: form.modoPlan,
+    })
+    replaceState(resolve(`/?${searchParams}`), {})
+  }
 
-    // Perform client-side calculations
-    tripContext.setIsCalculating(true);
+  function changePlan(plan: ModoPlan) {
+    form.modoPlan = plan
+    syncUrl()
+  }
+
+  async function calculate() {
+    const origin = originCoordinate
+    const destination = destinationCoordinate
+    if (!origin || !destination || !mapkit || calculating) return
+
+    view = "results"
+    panelOpen = false
+    calculating = true
+    error = null
 
     try {
-      const { calculateDirection, compareCarShareOptions, isInHomeZone } =
-        await import("../calculations");
+      const { directions } = await calculateDirection(
+        mapkit,
+        origin,
+        destination,
+        form.leaveAt,
+      )
+      const route = directions?.routes[0]
+      if (!route) throw new Error("No driving route found for this trip.")
 
-      const result = await calculateDirection(
-        mapkitInstance,
-        tripState.originCoordinate,
-        tripState.destinationCoordinate,
-        new Date(),
-      );
+      const driving_minutes =
+        Math.round((route.expectedTravelTime / 60) * 100) / 100
+      const parking = findParking(homezones, destination, form.walkMeters)
 
-      if (!result.directions?.routes?.[0]) {
-        console.error("No route found");
-        tripContext.setIsCalculating(false);
-        return;
+      trip = {
+        origin,
+        destination,
+        route,
+        parking,
+        walkMeters: form.walkMeters,
+        pricing: {
+          start_date: form.leaveAt,
+          driving_minutes,
+          staying_minutes: stayMinutes(
+            form.stay,
+            form.leaveAt,
+            driving_minutes,
+          ),
+          distance_km: Math.ceil(route.distance / 1000),
+          is_bcaa_member: form.bcaaMember,
+          vehicle_preference: form.vehicleType,
+          end_is_in_evo_home_zone: parking !== null,
+          round_trip_required: form.roundTrip,
+          is_ev: form.preferEv,
+        },
       }
-      tripState.route = result.directions.routes[0];
-      const route = tripState.route;
-
-      const travelTimeMinutes =
-        Math.round((route.expectedTravelTime / 60) * 100) / 100;
-      const tripDistanceKm = Math.ceil(route.distance / 1000);
-      const endIsInEvoHomeZone = isInHomeZone(
-        homezones,
-        tripState.destinationCoordinate,
-        tripState.parkingWalkingDistance,
-      );
-
-      const tripParams: TripParameters = {
-        start_date: new Date(),
-        driving_minutes: travelTimeMinutes,
-        staying_minutes: tripState.stayDuration ?? 0,
-        distance_km: tripDistanceKm,
-        is_bcaa_member: tripState.bcaaMembership,
-        end_is_in_evo_home_zone: endIsInEvoHomeZone,
-        is_ev: tripState.electricVehicle,
-        vehicle_preference: tripState.vehicleType,
-        round_trip_required: tripState.roundTripRequired,
-      };
-
-      const calculations = compareCarShareOptions(tripParams);
-      tripContext.setCalculations(calculations);
-    } catch (error) {
-      console.error("Error calculating trip:", error);
+      syncUrl()
+    } catch (err) {
+      console.error("Error calculating trip:", err)
+      trip = null
+      error = getErrorMessage(err, "Could not calculate this trip.")
     } finally {
-      tripContext.setIsCalculating(false);
-      goto(`${resolve("/")}?${searchParams.toString()}`, {
-        replaceState: true,
-        keepFocus: true,
-        noScroll: true,
-      });
+      calculating = false
     }
   }
 
-  let currentRoute: TripState["route"];
-  let currentDestination: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
-  let currentOrigin: InstanceType<MapKit["MarkerAnnotation"]> | undefined;
-  let originIsCurrentLocation = $state(false);
+  let mapElement: HTMLDivElement
+  let mapkit: MapKit | undefined
+  let map = $state.raw<InstanceType<MapKit["Map"]>>()
+  let originMarker: InstanceType<MapKit["MarkerAnnotation"]> | undefined
+  let destinationMarker: InstanceType<MapKit["MarkerAnnotation"]> | undefined
+  let fitted: Parameters<InstanceType<MapKit["Map"]>["showItems"]>[0] = []
+  let topInset = $state(0)
+  let bottomInset = $state(0)
 
-  let mapElement: HTMLDivElement;
-  let map: InstanceType<MapKit["Map"]> | undefined = $state();
-  let mapkitInstance: MapKit;
-  // let routeOverlay: mapkit.Overlay | null = null
-  const defaultDelta = 0.1;
-  // Default coordinates (Vancouver)
-  const defaultCoordinates = {
-    latitude: 49.28091630159075,
-    longitude: -123.11395918331695,
-  };
-  const isDesktop = new MediaQuery("(min-width: 768px)", true);
-
-  $effect(() => {
-    if (!map) {
-      return;
-    }
-    if (
-      tripState.originCoordinate &&
-      mapkitInstance &&
-      !originIsCurrentLocation
-    ) {
-      // Remove old origin marker if exists
-      if (currentOrigin) {
-        map.removeAnnotation(currentOrigin);
-      }
-
-      // Only create marker for non-current-location origins (gray marker)
-      // Current location is handled by showsUserLocation
-      currentOrigin = new mapkitInstance.MarkerAnnotation(
-        new mapkitInstance.Coordinate(
-          tripState.originCoordinate.latitude,
-          tripState.originCoordinate.longitude,
-        ),
-        {
-          color: "#6B7280",
-          glyphText: "",
-        },
-      );
-      map.addAnnotation(currentOrigin);
-    } else if (currentOrigin && originIsCurrentLocation) {
-      // Remove marker if switching to current location
-      map.removeAnnotation(currentOrigin);
-      currentOrigin = undefined;
-    }
-
-    // Enable user location display when using current location
-    if (map && originIsCurrentLocation) {
-      if (!map.showsUserLocation) {
-        map.showsUserLocation = true;
-      }
-    }
-  });
+  function fitRoute() {
+    if (!map || !mapkit || fitted.length === 0) return
+    map.showItems(fitted, {
+      animate: true,
+      padding: new mapkit.Padding(48, 48, 48, 48),
+    })
+  }
 
   $effect(() => {
-    if (!map) {
-      return;
+    if (!map || !mapkit) return
+    if (form.originIsCurrentLocation) map.showsUserLocation = true
+    if (!originCoordinate || form.originIsCurrentLocation) return
+
+    const currentMap = map
+    const marker = new mapkit.MarkerAnnotation(originCoordinate, {
+      color: "#6B7280",
+      glyphText: "",
+    })
+    currentMap.addAnnotation(marker)
+    originMarker = marker
+    return () => {
+      currentMap.removeAnnotation(marker)
+      originMarker = undefined
     }
-    if (tripState.destinationCoordinate && !tripState.route) {
-      // place marker on map only if no route calculated yet
-      if (currentDestination) {
-        map.removeAnnotation(currentDestination);
-      }
-      currentDestination = new mapkitInstance.MarkerAnnotation(
-        new mapkitInstance.Coordinate(
-          tripState.destinationCoordinate.latitude,
-          tripState.destinationCoordinate.longitude,
-        ),
-      );
-      map.addAnnotation(currentDestination);
-      // center map on destination
-      map.showItems([currentDestination], {
+  })
+
+  $effect(() => {
+    if (!map || !mapkit || !destinationCoordinate) return
+
+    const currentMap = map
+    const marker = new mapkit.MarkerAnnotation(destinationCoordinate)
+    currentMap.addAnnotation(marker)
+    destinationMarker = marker
+    if (!untrack(() => activeTrip)) {
+      currentMap.showItems([marker], {
         animate: true,
-        minimumSpan: new mapkitInstance.CoordinateSpan(0.008, 0.008),
-      });
+        minimumSpan: new mapkit.CoordinateSpan(0.008, 0.008),
+      })
     }
-  });
+    return () => {
+      currentMap.removeAnnotation(marker)
+      destinationMarker = undefined
+    }
+  })
 
   $effect(() => {
-    if (tripState.route && mapkitInstance && map) {
-      if (currentRoute) {
-        map.removeOverlay(currentRoute.polyline);
-      }
-      // Style and add the route polyline
-      const polyline = tripState.route.polyline;
-      polyline.style = new mapkitInstance.Style({
-        strokeColor: "#000088",
-        lineWidth: 3,
-      });
-      map.addOverlay(polyline);
-      currentRoute = tripState.route;
+    if (!map || !mapkit || !activeTrip) return
 
-      // Update markers
-      const itemsToShow: Parameters<typeof map.showItems>[0] = [polyline];
+    const currentMap = map
+    const { polyline } = activeTrip.route
+    polyline.style = new mapkit.Style({ strokeColor: "#000088", lineWidth: 4 })
+    currentMap.addOverlay(polyline)
 
-      // Add origin marker if not using current location
-      if (tripState.originCoordinate && !originIsCurrentLocation) {
-        if (currentOrigin) {
-          itemsToShow.push(currentOrigin);
-        }
-      }
+    const { parking } = activeTrip
+    const parkingMarker = parking
+      ? new mapkit.MarkerAnnotation(
+          new mapkit.Coordinate(parking.latitude, parking.longitude),
+          {
+            title: "Park Here!",
+            subtitle: parking.name,
+            color: "#16A34A",
+            glyphText: "P",
+            displayPriority: 1000,
+          },
+        )
+      : undefined
+    if (parkingMarker) currentMap.addAnnotation(parkingMarker)
 
-      // Add/update destination marker
-      if (tripState.destinationCoordinate) {
-        if (currentDestination) {
-          map.removeAnnotation(currentDestination);
-        }
-        currentDestination = new mapkitInstance.MarkerAnnotation(
-          new mapkitInstance.Coordinate(
-            tripState.destinationCoordinate.latitude,
-            tripState.destinationCoordinate.longitude,
-          ),
-        );
-        map.addAnnotation(currentDestination);
-        itemsToShow.push(currentDestination);
-      }
+    fitted = [polyline, originMarker, destinationMarker, parkingMarker].filter(
+      (item) => item !== undefined,
+    )
+    fitRoute()
 
-      // Zoom to show all items (route, origin, destination)
-      if (itemsToShow.length > 0) {
-        map.showItems(itemsToShow, {
-          animate: true,
-          padding: new mapkitInstance.Padding(60, 60, 60, 60),
-        });
-      }
-
+    return () => {
+      currentMap.removeOverlay(polyline)
+      if (parkingMarker) currentMap.removeAnnotation(parkingMarker)
+      fitted = []
     }
-  });
+  })
 
-  // Only resets re-run this; markers stay because the form keeps its values.
+  // Keeps MapKit's controls and the fitted route clear of the mobile overlays.
   $effect(() => {
-    tripContext.resetTrigger;
-    untrack(() => {
-      if (map && currentRoute) {
-        map.removeOverlay(currentRoute.polyline);
-      }
-      currentRoute = undefined;
-      tripState.route = undefined;
-    });
-  });
+    if (!map || !mapkit) return
+    map.padding = new mapkit.Padding(topInset, 0, bottomInset, 0)
+    untrack(fitRoute)
+  })
 
   $effect(() => {
-    if (map) {
-      map.colorScheme = themeContext.mapColorScheme;
-    }
-  });
+    if (map) map.colorScheme = themeContext.mapColorScheme
+  })
 
   // Shared links only carry coordinates, so label them with an address.
-  function lookupPlace(
-    coordinate: InstanceType<MapKit["Coordinate"]>,
-  ): Promise<Place> {
-    return new Promise((done) => {
-      new mapkitInstance.Geocoder().reverseLookup(coordinate, (_, response) => {
-        const address =
-          response?.results[0]?.formattedAddress ??
-          `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
-        done({ coordinate, displayLines: [address] });
-      });
-    });
+  function sharedPlace(
+    coordinate: Coordinate,
+    done: (place: Place) => void,
+  ): Place {
+    new mapkit!.Geocoder().reverseLookup(coordinate, (_, response) => {
+      const address = response?.results[0]?.formattedAddress
+      if (address) done({ coordinate, displayLines: [address] })
+    })
+    return {
+      coordinate,
+      displayLines: [
+        `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`,
+      ],
+    }
   }
 
   onMount(async () => {
     try {
-      // Initialize MapKit JS
-      mapkitInstance = await load({
+      mapkit = await load({
         token: PUBLIC_MAPKIT_TOKEN,
         language: "en-US",
         libraries: ["services", "full-map", "geojson", "user-location"],
-      });
+      })
 
-      const params = tripContext.params;
-      if (params) {
-        tripState.originCoordinate = new mapkitInstance.Coordinate(
-          params.origin_lat,
-          params.origin_lng,
-        );
-        tripState.destinationCoordinate = new mapkitInstance.Coordinate(
-          params.dest_lat,
-          params.dest_lng,
-        );
-        lookupPlace(tripState.originCoordinate).then(
-          (place) => (tripState.origin ??= place),
-        );
-        lookupPlace(tripState.destinationCoordinate).then(
-          (place) => (tripState.destination ??= place),
-        );
+      if (shared) {
+        const origin = new mapkit.Coordinate(
+          shared.origin_lat,
+          shared.origin_lng,
+        )
+        const destination = new mapkit.Coordinate(
+          shared.dest_lat,
+          shared.dest_lng,
+        )
+        form.origin = sharedPlace(origin, (place) => {
+          if (form.origin?.coordinate === origin) form.origin = place
+        })
+        form.destination = sharedPlace(destination, (place) => {
+          if (form.destination?.coordinate === destination)
+            form.destination = place
+        })
       }
 
-      // Create the map
-      map = new mapkitInstance.Map(mapElement, {
-        region: new mapkitInstance.CoordinateRegion(
-          new mapkitInstance.Coordinate(
-            defaultCoordinates.latitude,
-            defaultCoordinates.longitude,
-          ),
-          new mapkitInstance.CoordinateSpan(defaultDelta, defaultDelta),
+      const newMap = new mapkit.Map(mapElement, {
+        region: new mapkit.CoordinateRegion(
+          new mapkit.Coordinate(49.28091630159075, -123.11395918331695),
+          new mapkit.CoordinateSpan(0.1, 0.1),
         ),
         colorScheme: themeContext.mapColorScheme,
-      });
+      })
 
-      // Check if location permission is already granted
-      if (navigator.permissions) {
-        navigator.permissions
-          .query({ name: "geolocation" })
-          .then((result) => {
-            if (result.state === "granted" && map) {
-              map.showsUserLocation = true;
-            }
-          })
-          .catch(() => {
-            // Permissions API not supported or error, do nothing
-          });
+      navigator.permissions
+        ?.query({ name: "geolocation" })
+        .then((status) => {
+          if (status.state === "granted") newMap.showsUserLocation = true
+        })
+        .catch(() => {})
+
+      for (const homezone of homezones) {
+        const items = mapkit.importGeoJSON(homezone.zone)
+        if (items instanceof Error) throw items
+        if (items) newMap.addItems(items.getFlattenedItemList())
       }
+      const zoneStyle = new mapkit.Style({
+        fillColor: "#00BCE2",
+        strokeColor: "#00BCE2",
+      })
+      newMap.overlays.forEach((overlay) => (overlay.style = zoneStyle))
 
-      // map.region = region
+      map = newMap
 
-      homezones.forEach((homezone) => {
-        const zone = homezone.zone;
-        const items = mapkitInstance.importGeoJSON(zone);
-        if (items instanceof Error) {
-          throw items;
-        }
-
-        if (items) {
-          map?.addItems(items as any);
-        }
-      });
-
-      map.overlays.forEach(
-        (overlay) =>
-          (overlay.style = new mapkitInstance.Style({
-            fillColor: "#00BCE2",
-            strokeColor: "#00BCE2",
-          })),
-      );
-
-      if (params) {
-        await onSubmit();
-      }
-    } catch (error) {
-      console.error("Error initializing Apple Maps:", error);
+      if (shared) await calculate()
+    } catch (err) {
+      console.error("Error initializing Apple Maps:", err)
     }
-  });
+  })
 </script>
 
-{#snippet sidebar()}
-  <TripSidebar
-    bind:originCoordinate={tripState.originCoordinate}
-    bind:destinationCoordinate={tripState.destinationCoordinate}
-    inEvoHomeZone={tripState.inEvoHomeZone}
-    bind:stayDuration={tripState.stayDuration}
-    bind:bcaaMembership={tripState.bcaaMembership}
-    bind:electricVehicle={tripState.electricVehicle}
-    bind:roundTripRequired={tripState.roundTripRequired}
-    bind:vehicleType={tripState.vehicleType}
-    bind:route={tripState.route}
-    bind:parkingWalkingDistance={tripState.parkingWalkingDistance}
-    bind:origin={tripState.origin}
-    bind:destination={tripState.destination}
-    {comparisonResult}
-    calculateTripDetails={onSubmit}
-    bind:isFormView
-    bind:originIsCurrentLocation
-  />
-{/snippet}
-
-<div class="relative flex w-full h-full">
-  {#if isDesktop.current}
-    <div class="hidden md:block min-w-sm max-w-96 h-full">
-      {@render sidebar()}
-    </div>
-  {/if}
-  <div class="w-full h-full grow" bind:this={mapElement}></div>
-</div>
-
-{#if !isDesktop.current}
-  <button
-    type="button"
-    onclick={() => (dialogOpen = true)}
-    class="md:hidden fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 px-6 py-3 uppercase shadow-lg cursor-pointer bg-gray-800 dark:bg-gray-700 text-orange-50 dark:text-gray-100"
+<div class="relative flex h-full w-full">
+  <Dialog.Root
+    bind:open={
+      () => panelOpen && !isDesktop.current, (open) => (panelOpen = open)
+    }
   >
-    {isFormView ? "Plan trip" : "View results"}
-  </button>
-
-  <Dialog.Root bind:open={dialogOpen}>
     <Dialog.Content
-      class="inset-0 translate-x-0 translate-y-0 flex flex-col gap-0 h-dvh w-full max-w-none sm:max-w-none rounded-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-base bg-stone-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100"
+      forceMount
+      onOpenAutoFocus={(event) => event.preventDefault()}
     >
-      <div class="flex items-center justify-between px-4 py-3">
-        <Dialog.Title class="text-2xl font-bold">
-          {isFormView ? "Plan Your Trip" : "Trip Results"}
-        </Dialog.Title>
-        <Dialog.Close
-          class="p-2 rounded-md cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
+      {#snippet child({ props })}
+        <aside
+          {...isDesktop.current ? {} : props}
+          class="fixed inset-0 z-50 hidden flex-col bg-stone-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-gray-800 data-[state=open]:flex md:static md:z-auto md:flex md:w-96 md:shrink-0 md:py-0 dark:bg-gray-900 dark:text-gray-100"
         >
-          <X class="size-6" />
-          <span class="sr-only">Close</span>
-        </Dialog.Close>
-      </div>
-      <div class="min-h-0 flex-1 px-4 pb-4">
-        {@render sidebar()}
-      </div>
+          <div
+            class="flex items-center justify-between gap-2 px-4 py-3 md:px-5 md:pt-5"
+          >
+            <Dialog.Title class="text-2xl font-bold">
+              {panelView === "form" ? "Plan Your Trip" : "Trip Results"}
+            </Dialog.Title>
+            <div class="flex items-center gap-2">
+              {#if panelView === "results"}
+                <button
+                  type="button"
+                  onclick={() => (view = "form")}
+                  class="cursor-pointer text-sm underline text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                >
+                  Edit trip
+                </button>
+              {:else if activeTrip}
+                <button
+                  type="button"
+                  onclick={() => (view = "results")}
+                  class="cursor-pointer text-sm underline text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                >
+                  View results
+                </button>
+              {/if}
+              <ThemeToggle />
+              <Dialog.Close
+                class="cursor-pointer rounded-md p-2 hover:bg-gray-200 md:hidden dark:hover:bg-gray-700"
+              >
+                <X class="size-6" />
+                <span class="sr-only">Close</span>
+              </Dialog.Close>
+            </div>
+          </div>
+
+          <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4 md:px-5 md:pb-5">
+            <div class={{ hidden: panelView !== "form" }}>
+              <TripForm
+                bind:form
+                drivingMinutes={activeTrip?.pricing.driving_minutes}
+                {calculating}
+                onSubmit={calculate}
+              />
+            </div>
+            {#if panelView === "results"}
+              {#if calculating}
+                <div
+                  class="flex flex-col items-center gap-3 py-16"
+                  role="status"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    class="size-14 animate-spin"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Calculating All of the Things...
+                </div>
+              {:else if error}
+                <p class="text-red-600 dark:text-red-400">{error}</p>
+              {:else if activeTrip && result}
+                <TripResults
+                  trip={activeTrip}
+                  {result}
+                  fromLabel={placeLabel(form.origin)}
+                  toLabel={placeLabel(form.destination)}
+                  onPlanChange={changePlan}
+                />
+              {/if}
+            {/if}
+          </div>
+        </aside>
+      {/snippet}
     </Dialog.Content>
   </Dialog.Root>
-{/if}
+
+  <div class="relative h-full min-w-0 grow">
+    <div class="h-full w-full" bind:this={mapElement}></div>
+
+    <div
+      bind:clientHeight={topInset}
+      class="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:hidden"
+    >
+      {#if calculating}
+        <p
+          class="mx-auto w-fit rounded-full bg-white px-4 py-2 shadow-md dark:bg-gray-800"
+          role="status"
+        >
+          Calculating...
+        </p>
+      {:else if error}
+        <p
+          class="rounded-md bg-white px-4 py-2 text-red-600 shadow-md dark:bg-gray-800 dark:text-red-400"
+        >
+          {error}
+        </p>
+      {:else if result}
+        <TripVerdict {result} />
+      {/if}
+    </div>
+
+    <div
+      bind:clientHeight={bottomInset}
+      class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center gap-3 px-4 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:hidden"
+    >
+      {#if activeTrip || error}
+        {#if activeTrip}
+          <button
+            type="button"
+            onclick={() => openPanel("results")}
+            class="pointer-events-auto cursor-pointer bg-gray-800 px-5 py-3 uppercase text-orange-50 shadow-lg dark:bg-gray-700 dark:text-gray-100"
+          >
+            See details
+          </button>
+        {/if}
+        <button
+          type="button"
+          onclick={() => openPanel("form")}
+          class="pointer-events-auto cursor-pointer border-2 border-gray-800 bg-white px-5 py-3 uppercase text-gray-800 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        >
+          Edit trip
+        </button>
+      {:else}
+        <button
+          type="button"
+          disabled={calculating}
+          onclick={() => openPanel("form")}
+          class="pointer-events-auto cursor-pointer bg-gray-800 px-6 py-3 uppercase text-orange-50 shadow-lg disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100"
+        >
+          Plan trip
+        </button>
+      {/if}
+    </div>
+  </div>
+</div>
