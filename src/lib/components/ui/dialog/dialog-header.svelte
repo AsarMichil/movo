@@ -12,8 +12,8 @@
 
 <div
 	bind:this={ref}
-	data-slot="drawer-footer"
-	class={cn("mt-auto flex flex-col gap-2 p-4", className)}
+	data-slot="dialog-header"
+	class={cn("gap-2 flex flex-col", className)}
 	{...restProps}
 >
 	{@render children?.()}
