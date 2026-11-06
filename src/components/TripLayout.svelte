@@ -239,18 +239,29 @@
     currentMap.addOverlay(polyline)
 
     const { parking } = activeTrip
-    const parkingMarker = parking
-      ? new mapkit.MarkerAnnotation(
-          new mapkit.Coordinate(parking.latitude, parking.longitude),
-          {
-            title: "Park Here!",
-            subtitle: parking.name,
-            color: "#16A34A",
-            glyphText: "P",
-            displayPriority: 1000,
-          },
-        )
-      : undefined
+    const parkHere = parking && {
+      title: "Park Here!",
+      subtitle: parking.name,
+      color: "#16A34A",
+      glyphText: "P",
+    }
+    // Parking at the destination itself restyles its marker instead of hiding it under a second pin.
+    const restyled =
+      parking?.distance_meters === 0 ? destinationMarker : undefined
+    const original = restyled && {
+      title: restyled.title,
+      subtitle: restyled.subtitle,
+      color: restyled.color,
+      glyphText: restyled.glyphText,
+    }
+    if (restyled) Object.assign(restyled, parkHere)
+    const parkingMarker =
+      parking && !restyled
+        ? new mapkit.MarkerAnnotation(
+            new mapkit.Coordinate(parking.latitude, parking.longitude),
+            { ...parkHere, displayPriority: 1000 },
+          )
+        : undefined
     if (parkingMarker) currentMap.addAnnotation(parkingMarker)
 
     fitted = [polyline, originMarker, destinationMarker, parkingMarker].filter(
@@ -261,6 +272,7 @@
     return () => {
       currentMap.removeOverlay(polyline)
       if (parkingMarker) currentMap.removeAnnotation(parkingMarker)
+      if (restyled) Object.assign(restyled, original)
       fitted = []
     }
   })
