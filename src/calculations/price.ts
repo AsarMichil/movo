@@ -40,6 +40,7 @@ const DAY_MINUTES = 24 * 60
 const SALES_TAX = RATES.taxes.gst + RATES.taxes.pst
 
 const money = (amount: number) => `$${amount.toFixed(2)}`
+const hoursLabel = (minutes: number) => `${+(minutes / 60).toFixed(2)} h`
 
 export function pvrtCharges(minutes: number): number {
   const { minMinutes, periodMinutes } = RATES.pvrt
@@ -216,8 +217,8 @@ export function calculateModoCost(params: TripParameters, plan: ModoPlan): CostB
     } else {
       timeCost += hourlyTime
       distanceCost += hourlyDistance
-      const overnight = freeMinutes > 0 ? ` (overnight capped, ${freeMinutes / 60} h free)` : ""
-      details.push(`${prefix}${billedHours} h × ${money(rate)} = ${money(hourlyTime)}${overnight}`)
+      const overnight = freeMinutes > 0 ? ` (overnight capped, ${hoursLabel(freeMinutes)} free)` : ""
+      details.push(`${prefix}${hoursLabel(blockMinutes - freeMinutes)} × ${money(rate)} = ${money(hourlyTime)}${overnight}`)
       details.push(`${prefix}${km} km × ${money(perKm)} = ${money(hourlyDistance)}`)
     }
   }
