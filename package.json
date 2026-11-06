@@ -19,7 +19,6 @@
     "@lucide/svelte": "^1.70.0",
     "@turf/boolean-intersects": "^7.3.1",
     "@turf/circle": "^7.3.1",
-    "@turf/points-within-polygon": "^7.2.0",
     "@types/apple-mapkit": "^5.80.0",
     "bits-ui": "^2.20.6",
     "clsx": "^2.1.1",
@@ -27,7 +26,6 @@
     "date-fns": "^4.1.0",
     "svelte-sonner": "^1.0.7",
     "tailwind-merge": "^3.0.2",
-    "tailwind-variants": "^3.3.0",
     "zod": "3.24.2"
   },
   "devDependencies": {
