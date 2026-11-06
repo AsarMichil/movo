@@ -372,10 +372,7 @@
       () => panelOpen && !isDesktop.current, (open) => (panelOpen = open)
     }
   >
-    <Dialog.Content
-      forceMount
-      onOpenAutoFocus={(event) => event.preventDefault()}
-    >
+    <Dialog.Content forceMount>
       {#snippet child({ props })}
         <aside
           {...isDesktop.current ? {} : props}
@@ -467,12 +464,12 @@
 
     <div
       bind:clientHeight={topInset}
+      aria-live="polite"
       class="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:hidden"
     >
       {#if calculating}
         <p
           class="mx-auto w-fit rounded-full bg-white px-4 py-2 shadow-md dark:bg-gray-800"
-          role="status"
         >
           Calculating...
         </p>
