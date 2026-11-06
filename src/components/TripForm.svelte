@@ -4,6 +4,7 @@
   import {
     STAY_CHIPS,
     WALK_CHIPS,
+    followLeaveAt,
     formatDuration,
     fromLocalInput,
     isSameStay,
@@ -131,7 +132,12 @@
         step="900"
         bind:value={
           () => toLocalInput(form.leaveAt),
-          (value) => (form.leaveAt = fromLocalInput(value) ?? form.leaveAt)
+          (value) => {
+            const leaveAt = fromLocalInput(value)
+            if (!leaveAt) return
+            form.stay = followLeaveAt(form.stay, form.leaveAt, leaveAt)
+            form.leaveAt = leaveAt
+          }
         }
         class="w-full border-2 border-gray-800 bg-transparent p-2 dark:border-gray-600"
       />

@@ -41,19 +41,26 @@ const allDayEnd = (leaveAt: Date) => {
     : addDays(sixPm, 1)
 }
 
+// Leaving before 5am is already the night, so it ends that morning.
+const overnightEnd = (leaveAt: Date) => {
+  const nineAm = setHours(startOfDay(leaveAt), 9)
+  return leaveAt.getHours() < 5 ? nineAm : addDays(nineAm, 1)
+}
+
 export const STAY_CHIPS: { label: string; stay: (leaveAt: Date) => Stay }[] = [
   { label: "Quick stop", stay: () => ({ minutes: 15 }) },
   { label: "1 hr", stay: () => ({ minutes: 60 }) },
   { label: "2 hr", stay: () => ({ minutes: 120 }) },
   { label: "4 hr", stay: () => ({ minutes: 240 }) },
   { label: "All day", stay: (leaveAt) => ({ until: allDayEnd(leaveAt) }) },
-  {
-    label: "Overnight",
-    stay: (leaveAt) => ({
-      until: setHours(addDays(startOfDay(leaveAt), 1), 9),
-    }),
-  },
+  { label: "Overnight", stay: (leaveAt) => ({ until: overnightEnd(leaveAt) }) },
 ]
+
+// Chip stays are relative to the leave time, so they move with it; a picked end time stays put.
+export function followLeaveAt(stay: Stay, from: Date, to: Date): Stay {
+  const chip = STAY_CHIPS.find((chip) => isSameStay(stay, chip.stay(from)))
+  return chip ? chip.stay(to) : stay
+}
 
 export function isSameStay(a: Stay, b: Stay): boolean {
   if ("minutes" in a) return "minutes" in b && a.minutes === b.minutes

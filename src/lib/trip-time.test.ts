@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   STAY_CHIPS,
+  followLeaveAt,
   formatDuration,
   fromLocalInput,
   isSameStay,
@@ -49,11 +50,30 @@ describe("trip-time", () => {
     })
   })
 
-  it("ends Overnight at 9am the next day", () => {
+  it("ends Overnight at 9am the next day, or that morning before 5am", () => {
     const overnight = STAY_CHIPS.find((chip) => chip.label === "Overnight")!
     expect(overnight.stay(at("2026-11-06T19:00"))).toEqual({
       until: at("2026-11-07T09:00"),
     })
+    expect(overnight.stay(at("2026-11-07T01:00"))).toEqual({
+      until: at("2026-11-07T09:00"),
+    })
+    // Mar 8 springs forward (BC's last change): still 9am wall-clock, 13 h later
+    const leaveAt = at("2026-03-07T19:00")
+    const { until } = overnight.stay(leaveAt) as { until: Date }
+    expect(toLocalInput(until)).toBe("2026-03-08T09:00")
+    expect(until.getTime() - leaveAt.getTime()).toBe(13 * 3_600_000)
+  })
+
+  it("moves chip stays with the leave time and keeps a picked end time", () => {
+    const from = at("2026-11-06T09:00")
+    const to = at("2026-11-07T09:00")
+    expect(followLeaveAt({ until: at("2026-11-06T18:00") }, from, to)).toEqual({
+      until: at("2026-11-07T18:00"),
+    })
+    const picked = { until: at("2026-11-06T16:30") }
+    expect(followLeaveAt(picked, from, to)).toBe(picked)
+    expect(followLeaveAt({ minutes: 60 }, from, to)).toEqual({ minutes: 60 })
   })
 
   it("compares stays by kind and value", () => {
