@@ -50,11 +50,9 @@ calculation is client-side. Built with:
 
 ```bash
 bun dev          # Start dev server (user runs this)
-bun build        # Build for production
+bun run build    # Build for production (plain `bun build` is Bun's bundler)
 bun run test     # Vitest unit/regression tests
-bun lint:fix     # Lint code
-bun format:fix   # Format code
-bun check --output machine  # TypeScript check
+bun run check --output machine  # TypeScript check
 ```
 
 ## Technology-Specific Guidelines
