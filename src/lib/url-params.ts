@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { VehicleClass } from "../calculations/rates"
+import type { ModoPlan, VehicleClass } from "../calculations"
 
 const VEHICLE_CLASSES = [
   "daily_drive",
@@ -7,43 +7,49 @@ const VEHICLE_CLASSES = [
   "oversized",
 ] as const satisfies readonly VehicleClass[]
 
-const VehiclePreferenceSchema = z.enum(VEHICLE_CLASSES).optional()
+const MODO_PLANS = ["plus", "monthly"] as const satisfies readonly ModoPlan[]
+
+const flag = z
+  .string()
+  .optional()
+  .transform((val) => val === "true" || val === "1")
 
 const TripParamsUrlSchema = z.object({
   origin_lat: z.coerce.number().optional(),
   origin_lng: z.coerce.number().optional(),
   dest_lat: z.coerce.number().optional(),
   dest_lng: z.coerce.number().optional(),
+  leave_at: z
+    .string()
+    .datetime({ offset: true })
+    .transform((val) => new Date(val))
+    .optional(),
   stay_duration: z.coerce.number().optional(),
   parking_walking_distance: z.coerce.number().optional(),
-  bcaa_member: z
-    .string()
-    .optional()
-    .transform((val) => val === "true" || val === "1"),
-  electric_vehicle: z
-    .string()
-    .optional()
-    .transform((val) => val === "true" || val === "1"),
-  round_trip: z
-    .string()
-    .optional()
-    .transform((val) => val === "true" || val === "1"),
-  vehicle_type: VehiclePreferenceSchema,
+  bcaa_member: flag,
+  electric_vehicle: flag,
+  round_trip: flag,
+  vehicle_type: z.enum(VEHICLE_CLASSES).optional(),
+  modo_plan: z.enum(MODO_PLANS).optional(),
 })
 
 export type TripParamsUrl = z.infer<typeof TripParamsUrlSchema>
 
-const DEFAULT_VALUES = {
+export const DEFAULT_VALUES = {
   stay_duration: 0,
-  parking_walking_distance: 50,
+  parking_walking_distance: 250,
   bcaa_member: false,
   electric_vehicle: false,
   round_trip: false,
-  vehicle_type: undefined as VehicleClass | undefined,
+  modo_plan: "plus" as ModoPlan,
 }
 
-export type SharedTrip = TripParamsUrl &
-  Record<"origin_lat" | "origin_lng" | "dest_lat" | "dest_lng", number>
+type Coordinates = Record<
+  "origin_lat" | "origin_lng" | "dest_lat" | "dest_lng",
+  number
+>
+
+export type SharedTrip = TripParamsUrl & typeof DEFAULT_VALUES & Coordinates
 
 export function extractParameters(url: URL): SharedTrip | null {
   const parsed = TripParamsUrlSchema.safeParse(
@@ -65,9 +71,13 @@ export function extractParameters(url: URL): SharedTrip | null {
     return null
   }
 
+  const defined = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, value]) => value !== undefined),
+  )
+
   return {
     ...DEFAULT_VALUES,
-    ...parsed.data,
+    ...defined,
     origin_lat,
     origin_lng,
     dest_lat,
@@ -80,56 +90,21 @@ export function buildSearchParams(
 ): URLSearchParams {
   const searchParams = new URLSearchParams()
 
-  if (params.origin_lat !== undefined) {
-    searchParams.set("origin_lat", params.origin_lat.toString())
-  }
-  if (params.origin_lng !== undefined) {
-    searchParams.set("origin_lng", params.origin_lng.toString())
-  }
-  if (params.dest_lat !== undefined) {
-    searchParams.set("dest_lat", params.dest_lat.toString())
-  }
-  if (params.dest_lng !== undefined) {
-    searchParams.set("dest_lng", params.dest_lng.toString())
-  }
-  if (
-    params.stay_duration !== undefined &&
-    params.stay_duration !== DEFAULT_VALUES.stay_duration
-  ) {
-    searchParams.set("stay_duration", params.stay_duration.toString())
-  }
-  if (
-    params.parking_walking_distance !== undefined &&
-    params.parking_walking_distance !== DEFAULT_VALUES.parking_walking_distance
-  ) {
-    searchParams.set(
-      "parking_walking_distance",
-      params.parking_walking_distance.toString(),
-    )
-  }
-  if (
-    params.bcaa_member !== undefined &&
-    params.bcaa_member !== DEFAULT_VALUES.bcaa_member
-  ) {
-    searchParams.set("bcaa_member", params.bcaa_member ? "1" : "0")
-  }
-  if (
-    params.electric_vehicle !== undefined &&
-    params.electric_vehicle !== DEFAULT_VALUES.electric_vehicle
-  ) {
-    searchParams.set("electric_vehicle", params.electric_vehicle ? "1" : "0")
-  }
-  if (
-    params.round_trip !== undefined &&
-    params.round_trip !== DEFAULT_VALUES.round_trip
-  ) {
-    searchParams.set("round_trip", params.round_trip ? "1" : "0")
-  }
-  if (
-    params.vehicle_type !== undefined &&
-    params.vehicle_type !== DEFAULT_VALUES.vehicle_type
-  ) {
-    searchParams.set("vehicle_type", params.vehicle_type)
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue
+    if (
+      key in DEFAULT_VALUES &&
+      value === DEFAULT_VALUES[key as keyof typeof DEFAULT_VALUES]
+    ) {
+      continue
+    }
+    if (value instanceof Date) {
+      searchParams.set(key, value.toISOString())
+    } else if (typeof value === "boolean") {
+      searchParams.set(key, value ? "1" : "0")
+    } else {
+      searchParams.set(key, value.toString())
+    }
   }
 
   return searchParams
