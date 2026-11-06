@@ -122,6 +122,14 @@ describe("Modo", () => {
     expect(cost.total).toBeCloseTo((25 + 7 + 3) * TAX + PVRT, 2)
   })
 
+  it("caps a trip that starts after midnight at 3h until 7am", () => {
+    // 02:00-08:00: 3h (of 5h night) + 1h = 4h x 5
+    const params = trip({ start_date: new Date(2026, 2, 10, 2, 0), driving_minutes: 30, staying_minutes: 300 })
+    const cost = calculateModoCost(params, "plus")
+    expect(cost.time_cost).toBeCloseTo(20, 2)
+    expect(cost.details).toContain("4 h × $5.00 = $20.00 (overnight capped, 2 h free)")
+  })
+
   it("applies Day Tripper when cheaper than hourly", () => {
     // 09:00-09:00: 17h x 5 + 200 km x 0.35 = 155 > 100 (500 km included)
     const cost = calculateModoCost(dayTrip({ distance_km: 100 }), "plus")
