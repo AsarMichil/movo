@@ -16,8 +16,7 @@
   },
   "dependencies": {
     "@apple/mapkit-loader": "^0.2.1",
-    "@fontsource/cardo": "^5.2.5",
-    "@fontsource/david-libre": "^5.2.5",
+    "@fontsource-variable/inter-tight": "^5.3.0",
     "@lucide/svelte": "^1.70.0",
     "@turf/boolean-point-in-polygon": "^7.4.0",
     "@turf/nearest-point-on-line": "^7.4.0",
