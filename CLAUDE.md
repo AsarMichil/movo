@@ -31,11 +31,10 @@ calculation is client-side. Built with:
 - Interactive commands include:
   - `bun create svelte`
   - `bun dlx shadcn-svelte@latest init`
-  - `bun dev` (development server)
-  - `bun preview` (preview server)
-  - Any command that starts a server
   - Any deployment commands
 - Always tell the user what options to select for interactive commands
+- Dev and preview servers are fine to start yourself (run them in the
+  background) to verify changes in a browser
 
 ### File Organization
 
@@ -49,7 +48,7 @@ calculation is client-side. Built with:
 ### Available Scripts
 
 ```bash
-bun dev          # Start dev server (user runs this)
+bun dev          # Start dev server
 bun run build    # Build for production (plain `bun build` is Bun's bundler)
 bun run test     # Vitest unit/regression tests
 bun run format   # Prettier write (no semicolons, tailwind class order)
@@ -88,7 +87,7 @@ bun run check --output machine  # TypeScript check
 
 ## Common Pitfalls to Avoid
 
-2. **Don't run interactive commands** - always ask user
+2. **Don't run interactive commands** - always ask user (dev servers are fine)
 3. **Don't add unnecessary dependencies** - keep it simple
 4. **Don't break TypeScript strict mode** - maintain type safety
 5. **Don't create overengineered solutions** - prefer simplicity
