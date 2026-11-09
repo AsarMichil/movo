@@ -26,7 +26,12 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
   .dark {
+    color-scheme: dark;
     --color-bg: #0b0c0d;
     --color-surface: #161819;
     --color-ink: #f2f4f3;

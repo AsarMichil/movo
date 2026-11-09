@@ -6,6 +6,7 @@
     addMinutes,
     differenceInCalendarDays,
     format,
+    set,
   } from "date-fns"
   import type { VehicleClass } from "../calculations"
   import {
@@ -20,6 +21,7 @@
   } from "../lib/trip-time"
   import Address from "./Address.svelte"
   import Segmented from "./Segmented.svelte"
+  import Stepper from "./Stepper.svelte"
   import type { TripForm } from "./TripTypes"
 
   type Props = {
@@ -64,12 +66,18 @@
   )
   const walkMinutesNow = $derived(walkMinutes(form.walkMeters))
 
-  function stepWalk(minutes: number) {
-    const next = Math.min(
-      MAX_WALK_MINUTES,
-      Math.max(1, walkMinutesNow + minutes),
-    )
-    form.walkMeters = walkMeters(next)
+  function setWalkMinutes(minutes: number) {
+    if (Number.isNaN(minutes)) return
+    const clamped = Math.min(MAX_WALK_MINUTES, Math.max(1, Math.round(minutes)))
+    form.walkMeters = walkMeters(clamped)
+  }
+
+  // A typed "HH:mm" moves the time on its own day; a cleared field leaves it alone.
+  function atTime(date: Date, value: string) {
+    const [hours, minutes] = value.split(":").map(Number)
+    if (hours === undefined || minutes === undefined) return date
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return date
+    return set(date, { hours, minutes })
   }
 
   let dateInput: HTMLInputElement | undefined
@@ -166,6 +174,8 @@
 
   const chipClass =
     "inline-flex h-11 cursor-pointer items-center gap-1.5 border-2 border-rule bg-surface px-3 text-sm font-bold whitespace-nowrap aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-bg"
+  const timeInputClass =
+    "min-w-0 bg-transparent text-xl font-extrabold tabular-nums outline-offset-[-2px]"
   const labelClass = "text-xs font-extrabold tracking-wider uppercase"
   const linkClass =
     "h-11 cursor-pointer self-start text-sm font-bold underline underline-offset-3"
@@ -175,44 +185,6 @@
   <button type="button" aria-pressed={pressed} {onclick} class={chipClass}>
     {label}
   </button>
-{/snippet}
-
-{#snippet stepper(
-  name: string,
-  time: string,
-  step: (minutes: number) => void,
-  wide: boolean,
-  first?: (button: HTMLButtonElement) => void,
-  amount = 15,
-  [less, more] = ["earlier", "later"],
-)}
-  <div class="flex">
-    <button
-      type="button"
-      aria-label="{name} {amount} min {less}"
-      onclick={() => step(-amount)}
-      {@attach first}
-      class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
-    >
-      −
-    </button>
-    <output
-      class={[
-        "grid h-11 place-items-center border-y-2 border-rule bg-surface px-3 font-extrabold tracking-tight whitespace-nowrap tabular-nums",
-        wide ? "flex-1 text-xl" : "text-base",
-      ]}
-    >
-      {time}
-    </output>
-    <button
-      type="button"
-      aria-label="{name} {amount} min {more}"
-      onclick={() => step(amount)}
-      class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
-    >
-      +
-    </button>
-  </div>
 {/snippet}
 
 {#snippet toggle(
@@ -304,12 +276,21 @@
         class="pointer-events-none absolute bottom-0 left-0 size-px opacity-0"
       />
     </div>
-    {@render stepper(
-      "Leave",
-      format(form.leaveAt, "h:mm a"),
-      (minutes) => (form.leaveAt = addMinutes(form.leaveAt, minutes)),
-      true,
-    )}
+    <Stepper
+      name="Leave"
+      amount={15}
+      unit="earlier"
+      onStep={(minutes) => (form.leaveAt = addMinutes(form.leaveAt, minutes))}
+    >
+      <input
+        type="time"
+        aria-label="Leave time"
+        value={format(form.leaveAt, "HH:mm")}
+        onchange={(event) =>
+          (form.leaveAt = atTime(form.leaveAt, event.currentTarget.value))}
+        class={timeInputClass}
+      />
+    </Stepper>
   </div>
 
   <div role="group" aria-labelledby="{uid}-stay" class="flex flex-col gap-2">
@@ -330,16 +311,29 @@
       {@const dayOffset = differenceInCalendarDays(endBy, form.leaveAt)}
       {@const pickerLabel = form.roundTrip ? "Back home by" : "Leave there by"}
       <div class="flex flex-col gap-1.5 border-2 border-rule bg-surface p-1.5">
-        <div class="flex items-center justify-between gap-3 pl-1.5">
-          <span class="font-bold">{pickerLabel}</span>
-          {@render stepper(
-            pickerLabel,
-            formatTime(endBy, form.leaveAt),
-            (minutes) => (form.stay = { endBy: addMinutes(endBy, minutes) }),
-            false,
-            focusIf("picker"),
-          )}
-        </div>
+        <span class="pt-0.5 pl-1.5 font-bold">{pickerLabel}</span>
+        <Stepper
+          name={pickerLabel}
+          amount={15}
+          unit="earlier"
+          onStep={(minutes) =>
+            (form.stay = { endBy: addMinutes(endBy, minutes) })}
+          first={focusIf("picker")}
+        >
+          <input
+            type="time"
+            aria-label="{pickerLabel} time"
+            value={format(endBy, "HH:mm")}
+            onchange={(event) =>
+              (form.stay = { endBy: atTime(endBy, event.currentTarget.value) })}
+            class={timeInputClass}
+          />
+          {#if dayOffset !== 0}
+            <span class="shrink-0 text-base text-muted">
+              {format(endBy, "EEE")}
+            </span>
+          {/if}
+        </Stepper>
         <div class="flex gap-1.5">
           {#each ["Same day", "Next day"] as label, offset (label)}
             {@render chip(label, dayOffset === offset, () => {
@@ -378,15 +372,25 @@
       }}
     />
     {#if customWalk}
-      {@render stepper(
-        "Walk",
-        `${walkMinutesNow} min walk`,
-        stepWalk,
-        true,
-        undefined,
-        1,
-        ["less", "more"],
-      )}
+      <Stepper
+        name="Walk"
+        amount={1}
+        unit="less"
+        onStep={(minutes) => setWalkMinutes(walkMinutesNow + minutes)}
+      >
+        <input
+          type="number"
+          inputmode="numeric"
+          min="1"
+          max={MAX_WALK_MINUTES}
+          aria-label="Walk from parking, minutes"
+          value={walkMinutesNow}
+          onchange={(event) =>
+            setWalkMinutes(event.currentTarget.valueAsNumber)}
+          class="w-12 [appearance:textfield] bg-transparent text-right text-xl font-extrabold tabular-nums outline-offset-[-2px] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <span class="text-xl">min walk</span>
+      </Stepper>
     {/if}
     <p class="text-sm text-muted">
       Up to {form.walkMeters} m. Evo can only end the trip inside a home zone.
