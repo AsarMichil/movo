@@ -14,7 +14,7 @@ import {
   type SharedTrip,
 } from "../lib/url-params"
 import { getErrorMessage } from "../lib/errors"
-import { nextQuarterHour, stayMinutes } from "../lib/trip-time"
+import { nextQuarterHour, stayMinutes, walkMeters } from "../lib/trip-time"
 import type { Coordinate, Place, Trip, TripForm } from "./TripTypes"
 
 const label = (place: Place | undefined) => place?.displayLines.join(", ") ?? ""
@@ -27,7 +27,7 @@ export class TripPlanner {
     originIsCurrentLocation: false,
     leaveAt: nextQuarterHour(new Date()),
     stay: { minutes: 60 },
-    walkMeters: DEFAULT_VALUES.parking_walking_distance,
+    walkMeters: walkMeters(5),
     bcaaMember: false,
     preferEv: false,
     roundTrip: false,

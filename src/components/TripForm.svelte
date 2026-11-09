@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import Calendar from "@lucide/svelte/icons/calendar"
   import {
     addDays,
@@ -9,13 +10,12 @@
   import type { VehicleClass } from "../calculations"
   import {
     STAY_CHIPS,
-    WALK_CHIPS,
-    followLeaveAt,
+    WALK_CHIP_MINUTES,
     formatDuration,
     formatTime,
-    isSameStay,
     nextQuarterHour,
     stayMinutes,
+    walkMeters,
     walkMinutes,
   } from "../lib/trip-time"
   import Address from "./Address.svelte"
@@ -44,10 +44,33 @@
     { value: "oversized", label: "Oversized" },
   ]
 
-  const WALK_OPTIONS = WALK_CHIPS.map((chip) => ({
-    value: String(chip.meters),
-    label: `${chip.minutes} min`,
-  }))
+  const WALK_OPTIONS = [
+    ...WALK_CHIP_MINUTES.map((minutes) => ({
+      value: String(minutes),
+      label: `${minutes} min`,
+    })),
+    { value: "other", label: "Other" },
+  ]
+  const MAX_WALK_MINUTES = 30
+
+  // Other stays selected while stepping, even onto a chip's value.
+  let customWalk = $state(
+    untrack(
+      () =>
+        !WALK_CHIP_MINUTES.some(
+          (minutes) => walkMeters(minutes) === form.walkMeters,
+        ),
+    ),
+  )
+  const walkMinutesNow = $derived(walkMinutes(form.walkMeters))
+
+  function stepWalk(minutes: number) {
+    const next = Math.min(
+      MAX_WALK_MINUTES,
+      Math.max(1, walkMinutesNow + minutes),
+    )
+    form.walkMeters = walkMeters(next)
+  }
 
   let dateInput: HTMLInputElement | undefined
 
@@ -59,11 +82,6 @@
       focusOnMount = undefined
       element.focus()
     }
-
-  function setLeaveAt(leaveAt: Date) {
-    form.stay = followLeaveAt(form.stay, form.leaveAt, leaveAt)
-    form.leaveAt = leaveAt
-  }
 
   const onDay = (date: Date, day: Date) =>
     new Date(
@@ -133,12 +151,6 @@
     focusOnMount = "link"
   }
 
-  const walkHint = $derived(
-    WALK_CHIPS.some((chip) => chip.meters === form.walkMeters)
-      ? `Up to ${form.walkMeters} m`
-      : `Up to ${form.walkMeters} m (about ${walkMinutes(form.walkMeters)} min)`,
-  )
-
   const stayTooShort = $derived(
     "endBy" in form.stay &&
       (form.stay.endBy <= form.leaveAt ||
@@ -171,12 +183,14 @@
   step: (minutes: number) => void,
   wide: boolean,
   first?: (button: HTMLButtonElement) => void,
+  amount = 15,
+  [less, more] = ["earlier", "later"],
 )}
   <div class="flex">
     <button
       type="button"
-      aria-label="{name} 15 min earlier"
-      onclick={() => step(-15)}
+      aria-label="{name} {amount} min {less}"
+      onclick={() => step(-amount)}
       {@attach first}
       class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
     >
@@ -192,8 +206,8 @@
     </output>
     <button
       type="button"
-      aria-label="{name} 15 min later"
-      onclick={() => step(15)}
+      aria-label="{name} {amount} min {more}"
+      onclick={() => step(amount)}
       class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
     >
       +
@@ -251,11 +265,15 @@
   <div role="group" aria-labelledby="{uid}-leave" class="flex flex-col gap-2">
     <span id="{uid}-leave" class={labelClass}>Leave</span>
     <div class="relative flex flex-wrap gap-1.5">
-      {@render chip("Today", leaveDayOffset === 0, () =>
-        setLeaveAt(onDay(form.leaveAt, new Date())),
+      {@render chip(
+        "Today",
+        leaveDayOffset === 0,
+        () => (form.leaveAt = onDay(form.leaveAt, new Date())),
       )}
-      {@render chip("Tomorrow", leaveDayOffset === 1, () =>
-        setLeaveAt(onDay(form.leaveAt, addDays(new Date(), 1))),
+      {@render chip(
+        "Tomorrow",
+        leaveDayOffset === 1,
+        () => (form.leaveAt = onDay(form.leaveAt, addDays(new Date(), 1))),
       )}
       <button
         type="button"
@@ -281,7 +299,7 @@
             .split("-")
             .map(Number)
           if (year && month && day)
-            setLeaveAt(onDay(form.leaveAt, new Date(year, month - 1, day)))
+            form.leaveAt = onDay(form.leaveAt, new Date(year, month - 1, day))
         }}
         class="pointer-events-none absolute bottom-0 left-0 size-px opacity-0"
       />
@@ -289,7 +307,7 @@
     {@render stepper(
       "Leave",
       format(form.leaveAt, "h:mm a"),
-      (minutes) => setLeaveAt(addMinutes(form.leaveAt, minutes)),
+      (minutes) => (form.leaveAt = addMinutes(form.leaveAt, minutes)),
       true,
     )}
   </div>
@@ -300,9 +318,9 @@
       {#each STAY_CHIPS as option (option.label)}
         {@render chip(
           option.label,
-          isSameStay(form.stay, option.stay(form.leaveAt)),
+          "minutes" in form.stay && form.stay.minutes === option.minutes,
           () => {
-            form.stay = option.stay(form.leaveAt)
+            form.stay = { minutes: option.minutes }
           },
         )}
       {/each}
@@ -353,11 +371,25 @@
     <Segmented
       label="Walk from parking"
       options={WALK_OPTIONS}
-      value={String(form.walkMeters)}
-      onChange={(value) => (form.walkMeters = Number(value))}
+      value={customWalk ? "other" : String(walkMinutesNow)}
+      onChange={(value) => {
+        customWalk = value === "other"
+        if (!customWalk) form.walkMeters = walkMeters(Number(value))
+      }}
     />
+    {#if customWalk}
+      {@render stepper(
+        "Walk",
+        `${walkMinutesNow} min walk`,
+        stepWalk,
+        true,
+        undefined,
+        1,
+        ["less", "more"],
+      )}
+    {/if}
     <p class="text-sm text-muted">
-      {walkHint}. Evo can only end the trip inside a home zone.
+      Up to {form.walkMeters} m. Evo can only end the trip inside a home zone.
     </p>
   </div>
 
