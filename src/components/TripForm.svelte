@@ -1,15 +1,21 @@
 <script lang="ts">
-  import { addMinutes } from "date-fns"
+  import Calendar from "@lucide/svelte/icons/calendar"
+  import {
+    addDays,
+    addMinutes,
+    differenceInCalendarDays,
+    format,
+  } from "date-fns"
   import type { VehicleClass } from "../calculations"
   import {
     STAY_CHIPS,
     WALK_CHIPS,
     followLeaveAt,
     formatDuration,
-    fromLocalInput,
+    formatTime,
     isSameStay,
+    nextQuarterHour,
     stayMinutes,
-    toLocalInput,
     walkMinutes,
   } from "../lib/trip-time"
   import Address from "./Address.svelte"
@@ -38,23 +44,94 @@
     { value: "oversized", label: "Oversized" },
   ]
 
-  const leaveDestination = $derived.by(() => {
-    if ("until" in form.stay) return form.stay.until
-    if (drivingMinutes === undefined) return undefined
-    return addMinutes(form.leaveAt, drivingMinutes + form.stay.minutes)
-  })
+  const WALK_OPTIONS = WALK_CHIPS.map((chip) => ({
+    value: String(chip.meters),
+    label: `${chip.minutes} min`,
+  }))
+
+  let dateInput: HTMLInputElement | undefined
+
+  // Switching stay modes swaps the clicked button out, so focus follows to its replacement.
+  let focusOnMount: "picker" | "link" | undefined
+  const focusIf =
+    (key: typeof focusOnMount) => (element: HTMLButtonElement) => {
+      if (focusOnMount !== key) return
+      focusOnMount = undefined
+      element.focus()
+    }
+
+  function setLeaveAt(leaveAt: Date) {
+    form.stay = followLeaveAt(form.stay, form.leaveAt, leaveAt)
+    form.leaveAt = leaveAt
+  }
+
+  const onDay = (date: Date, day: Date) =>
+    new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      date.getHours(),
+      date.getMinutes(),
+    )
+
+  const leaveDayOffset = $derived(
+    differenceInCalendarDays(form.leaveAt, new Date()),
+  )
+
+  function pickDate() {
+    try {
+      dateInput?.showPicker()
+    } catch {
+      dateInput?.focus()
+    }
+  }
+
+  const place = $derived(
+    form.destination?.displayLines[0] ?? "your destination",
+  )
+  // Before a compare there is no drive yet, so switching stay modes assumes none.
+  const minutesThere = $derived(
+    stayMinutes(form.stay, form.leaveAt, drivingMinutes ?? 0, form.roundTrip),
+  )
 
   const stayHint = $derived.by(() => {
-    if ("minutes" in form.stay)
-      return `${formatDuration(form.stay.minutes)} at your destination`
-    if (form.stay.until <= form.leaveAt)
-      return "That's before you leave. Pick a later time."
     if (drivingMinutes === undefined) {
-      return "Time at destination is worked out from the drive when you compare."
+      if ("minutes" in form.stay)
+        return `${formatDuration(form.stay.minutes)} at ${place}`
+      if ("endBy" in form.stay && form.stay.endBy <= form.leaveAt)
+        return "That's before you leave. Pick a later time."
+      return `Time at ${place} is worked out from the drive when you compare.`
     }
-    const minutes = stayMinutes(form.stay, form.leaveAt, drivingMinutes)
-    return `${formatDuration(minutes)} at your destination after a ${formatDuration(drivingMinutes)} drive`
+    const drive = formatDuration(drivingMinutes)
+    if (minutesThere === 0) {
+      return form.roundTrip
+        ? `That's too early to get there and back with ${drive} driving each way. Pick a later time.`
+        : `That's too early with a ${drive} drive. Pick a later time.`
+    }
+    if ("endBy" in form.stay) {
+      return form.roundTrip
+        ? `That gives you ${formatDuration(minutesThere)} at ${place}, with ${drive} driving each way.`
+        : `That gives you ${formatDuration(minutesThere)} at ${place} after a ${drive} drive.`
+    }
+    const leaveThere = addMinutes(form.leaveAt, drivingMinutes + minutesThere)
+    const until = `At ${place} until about ${formatTime(leaveThere, form.leaveAt)}`
+    if (!form.roundTrip) return `${until}.`
+    const home = addMinutes(leaveThere, drivingMinutes)
+    return `${until}, home around ${formatTime(home, form.leaveAt)}.`
   })
+
+  function pickEndBy() {
+    const drives = (drivingMinutes ?? 0) * (form.roundTrip ? 2 : 1)
+    form.stay = {
+      endBy: nextQuarterHour(addMinutes(form.leaveAt, minutesThere + drives)),
+    }
+    focusOnMount = "picker"
+  }
+
+  function pickLength() {
+    form.stay = { minutes: Math.max(15, Math.round(minutesThere / 15) * 15) }
+    focusOnMount = "link"
+  }
 
   const walkHint = $derived(
     WALK_CHIPS.some((chip) => chip.meters === form.walkMeters)
@@ -62,22 +139,66 @@
       : `Up to ${form.walkMeters} m (about ${walkMinutes(form.walkMeters)} min)`,
   )
 
+  const stayTooShort = $derived(
+    "endBy" in form.stay &&
+      (form.stay.endBy <= form.leaveAt ||
+        (drivingMinutes !== undefined && minutesThere === 0)),
+  )
+
   const canSubmit = $derived(
     form.origin?.coordinate !== undefined &&
       form.destination?.coordinate !== undefined &&
+      !stayTooShort &&
       !calculating,
   )
+
+  const chipClass =
+    "inline-flex h-11 cursor-pointer items-center gap-1.5 border-2 border-rule bg-surface px-3 text-sm font-bold whitespace-nowrap aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-bg"
+  const labelClass = "text-xs font-extrabold tracking-wider uppercase"
+  const linkClass =
+    "h-11 cursor-pointer self-start text-sm font-bold underline underline-offset-3"
 </script>
 
 {#snippet chip(label: string, pressed: boolean, onclick: () => void)}
-  <button
-    type="button"
-    aria-pressed={pressed}
-    {onclick}
-    class="h-8 cursor-pointer border-2 border-gray-300 px-3 text-sm font-medium text-gray-600 transition-colors hover:border-gray-700 aria-pressed:border-gray-800 aria-pressed:bg-gray-800 aria-pressed:text-white dark:border-gray-600 dark:text-gray-300 dark:aria-pressed:border-gray-600 dark:aria-pressed:bg-gray-600"
-  >
+  <button type="button" aria-pressed={pressed} {onclick} class={chipClass}>
     {label}
   </button>
+{/snippet}
+
+{#snippet stepper(
+  name: string,
+  time: string,
+  step: (minutes: number) => void,
+  wide: boolean,
+  first?: (button: HTMLButtonElement) => void,
+)}
+  <div class="flex">
+    <button
+      type="button"
+      aria-label="{name} 15 min earlier"
+      onclick={() => step(-15)}
+      {@attach first}
+      class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
+    >
+      −
+    </button>
+    <output
+      class={[
+        "grid h-11 place-items-center border-y-2 border-rule bg-surface px-3 font-extrabold tracking-tight whitespace-nowrap tabular-nums",
+        wide ? "flex-1 text-xl" : "text-base",
+      ]}
+    >
+      {time}
+    </output>
+    <button
+      type="button"
+      aria-label="{name} 15 min later"
+      onclick={() => step(15)}
+      class="h-11 w-12 shrink-0 cursor-pointer border-2 border-rule bg-surface text-2xl font-bold"
+    >
+      +
+    </button>
+  </div>
 {/snippet}
 
 {#snippet toggle(
@@ -86,10 +207,12 @@
   checked: boolean,
   onchange: (checked: boolean) => void,
 )}
-  <label class="flex cursor-pointer items-center justify-between gap-4 py-1">
+  <label
+    class="flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-hair py-1"
+  >
     <span>
-      <span class="block font-medium">{label}</span>
-      <span class="block text-sm text-gray-600 dark:text-gray-400">{hint}</span>
+      <span class="block font-bold">{label}</span>
+      <span class="block text-sm text-muted">{hint}</span>
     </span>
     <input
       type="checkbox"
@@ -100,117 +223,145 @@
     />
     <span
       aria-hidden="true"
-      class="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-gray-800 peer-focus-visible:ring-2 peer-focus-visible:ring-gray-800 peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5 dark:bg-gray-600 dark:peer-checked:bg-gray-300 dark:after:bg-gray-900"
+      class="relative h-7 w-12 shrink-0 border-2 border-rule bg-surface outline-offset-2 outline-ink peer-checked:bg-ink peer-focus-visible:outline-2 after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:bg-ink peer-checked:after:translate-x-5 peer-checked:after:bg-bg"
     ></span>
   </label>
 {/snippet}
 
-<div class="space-y-6 text-gray-800 dark:text-gray-100">
-  <div class="space-y-4">
-    <Address
-      bind:value={form.destination}
-      label="Destination"
-      placeholder="Where to?"
-    />
+<div class="flex flex-col gap-5">
+  <div class="border-2 border-rule bg-surface">
     <Address
       bind:value={form.origin}
       label="Origin"
       placeholder="Starting location"
+      dot="round"
       onLocationSelected={(_, isCurrentLocation) =>
         (form.originIsCurrentLocation = isCurrentLocation)}
     />
+    <div class="border-t border-hair">
+      <Address
+        bind:value={form.destination}
+        label="Destination"
+        placeholder="Where to?"
+        dot="square"
+      />
+    </div>
   </div>
 
-  <fieldset class="space-y-3">
-    <legend class="text-sm font-semibold">When</legend>
-    <label class="block space-y-1">
-      <span class="block text-sm text-gray-700 dark:text-gray-300"
-        >Leave at</span
+  <div role="group" aria-labelledby="{uid}-leave" class="flex flex-col gap-2">
+    <span id="{uid}-leave" class={labelClass}>Leave</span>
+    <div class="relative flex flex-wrap gap-1.5">
+      {@render chip("Today", leaveDayOffset === 0, () =>
+        setLeaveAt(onDay(form.leaveAt, new Date())),
+      )}
+      {@render chip("Tomorrow", leaveDayOffset === 1, () =>
+        setLeaveAt(onDay(form.leaveAt, addDays(new Date(), 1))),
+      )}
+      <button
+        type="button"
+        aria-pressed={leaveDayOffset !== 0 && leaveDayOffset !== 1}
+        onclick={pickDate}
+        class={chipClass}
       >
+        <Calendar class="size-4" aria-hidden="true" />
+        {leaveDayOffset === 0 || leaveDayOffset === 1
+          ? "Pick date"
+          : format(form.leaveAt, "EEE, MMM d")}
+      </button>
       <input
-        type="datetime-local"
-        step="900"
-        bind:value={
-          () => toLocalInput(form.leaveAt),
-          (value) => {
-            const leaveAt = fromLocalInput(value)
-            if (!leaveAt) return
-            form.stay = followLeaveAt(form.stay, form.leaveAt, leaveAt)
-            form.leaveAt = leaveAt
-          }
-        }
-        class="w-full border-2 border-gray-800 bg-transparent p-2 dark:border-gray-600"
+        {@attach (input) => {
+          dateInput = input
+        }}
+        type="date"
+        tabindex={-1}
+        aria-label="Leave date"
+        value={format(form.leaveAt, "yyyy-MM-dd")}
+        onchange={(event) => {
+          const [year, month, day] = event.currentTarget.value
+            .split("-")
+            .map(Number)
+          if (year && month && day)
+            setLeaveAt(onDay(form.leaveAt, new Date(year, month - 1, day)))
+        }}
+        class="pointer-events-none absolute bottom-0 left-0 size-px opacity-0"
       />
-    </label>
-
-    <div class="space-y-1">
-      <span
-        id="{uid}-stay"
-        class="block text-sm text-gray-700 dark:text-gray-300"
-      >
-        Time at destination
-      </span>
-      <div
-        class="flex flex-wrap gap-1"
-        role="group"
-        aria-labelledby="{uid}-stay"
-      >
-        {#each STAY_CHIPS as option (option.label)}
-          {@render chip(
-            option.label,
-            isSameStay(form.stay, option.stay(form.leaveAt)),
-            () => {
-              form.stay = option.stay(form.leaveAt)
-            },
-          )}
-        {/each}
-      </div>
     </div>
+    {@render stepper(
+      "Leave",
+      format(form.leaveAt, "h:mm a"),
+      (minutes) => setLeaveAt(addMinutes(form.leaveAt, minutes)),
+      true,
+    )}
+  </div>
 
-    <label class="block space-y-1">
-      <span class="block text-sm text-gray-700 dark:text-gray-300"
-        >Or leave destination at</span
-      >
-      <input
-        type="datetime-local"
-        step="900"
-        bind:value={
-          () => (leaveDestination ? toLocalInput(leaveDestination) : ""),
-          (value) => {
-            const until = fromLocalInput(value)
-            if (until) form.stay = { until }
-          }
-        }
-        class="w-full border-2 border-gray-800 bg-transparent p-2 dark:border-gray-600"
-      />
-    </label>
-    <p class="text-sm text-gray-600 dark:text-gray-400" aria-live="polite">
-      {stayHint}
-    </p>
-  </fieldset>
-
-  <fieldset class="space-y-1">
-    <legend class="text-sm font-semibold"
-      >How far are you willing to walk from parking?</legend
-    >
-    <div class="flex flex-wrap gap-1 pt-1">
-      {#each WALK_CHIPS as option (option.meters)}
+  <div role="group" aria-labelledby="{uid}-stay" class="flex flex-col gap-2">
+    <span id="{uid}-stay" class={labelClass}>Stay</span>
+    <div class="flex flex-wrap gap-1.5">
+      {#each STAY_CHIPS as option (option.label)}
         {@render chip(
-          `${option.minutes} min`,
-          form.walkMeters === option.meters,
+          option.label,
+          isSameStay(form.stay, option.stay(form.leaveAt)),
           () => {
-            form.walkMeters = option.meters
+            form.stay = option.stay(form.leaveAt)
           },
         )}
       {/each}
     </div>
-    <p class="text-sm text-gray-600 dark:text-gray-400">
+    {#if "endBy" in form.stay}
+      {@const endBy = form.stay.endBy}
+      {@const dayOffset = differenceInCalendarDays(endBy, form.leaveAt)}
+      {@const pickerLabel = form.roundTrip ? "Back home by" : "Leave there by"}
+      <div class="flex flex-col gap-1.5 border-2 border-rule bg-surface p-1.5">
+        <div class="flex items-center justify-between gap-3 pl-1.5">
+          <span class="font-bold">{pickerLabel}</span>
+          {@render stepper(
+            pickerLabel,
+            formatTime(endBy, form.leaveAt),
+            (minutes) => (form.stay = { endBy: addMinutes(endBy, minutes) }),
+            false,
+            focusIf("picker"),
+          )}
+        </div>
+        <div class="flex gap-1.5">
+          {#each ["Same day", "Next day"] as label, offset (label)}
+            {@render chip(label, dayOffset === offset, () => {
+              form.stay = { endBy: onDay(endBy, addDays(form.leaveAt, offset)) }
+            })}
+          {/each}
+        </div>
+      </div>
+    {/if}
+    <p class="text-sm text-muted" aria-live="polite">{stayHint}</p>
+    {#if "endBy" in form.stay}
+      <button type="button" onclick={pickLength} class={linkClass}>
+        Use a stay length instead
+      </button>
+    {:else}
+      <button
+        type="button"
+        {@attach focusIf("link")}
+        onclick={pickEndBy}
+        class={linkClass}
+      >
+        Set a time to be back instead
+      </button>
+    {/if}
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <span class={labelClass}>Walk from parking</span>
+    <Segmented
+      label="Walk from parking"
+      options={WALK_OPTIONS}
+      value={String(form.walkMeters)}
+      onChange={(value) => (form.walkMeters = Number(value))}
+    />
+    <p class="text-sm text-muted">
       {walkHint}. Evo can only end the trip inside a home zone.
     </p>
-  </fieldset>
+  </div>
 
-  <fieldset class="space-y-2">
-    <legend class="text-sm font-semibold">Trip</legend>
+  <div class="flex flex-col border-t-2 border-rule">
     {@render toggle(
       "I'm driving back",
       "Need a car for the return trip",
@@ -229,23 +380,24 @@
       form.preferEv,
       (checked) => (form.preferEv = checked),
     )}
-    <div class="space-y-1 pt-1">
-      <span class="block font-medium">Modo car size</span>
-      <Segmented
-        label="Modo car size"
-        options={VEHICLE_OPTIONS}
-        value={form.vehicleType ?? "daily_drive"}
-        onChange={(value) => (form.vehicleType = value)}
-      />
-    </div>
-  </fieldset>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <span class={labelClass}>Modo car size</span>
+    <Segmented
+      label="Modo car size"
+      options={VEHICLE_OPTIONS}
+      value={form.vehicleType ?? "daily_drive"}
+      onChange={(value) => (form.vehicleType = value)}
+    />
+  </div>
 
   <button
     type="button"
     disabled={!canSubmit}
     onclick={onSubmit}
-    class="w-full cursor-pointer bg-gray-800 px-2 py-3 text-orange-50 uppercase hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100"
+    class="h-14 w-full cursor-pointer border-2 border-rule bg-signal text-lg font-black tracking-tight text-on-signal uppercase disabled:cursor-not-allowed disabled:border-hair disabled:bg-surface disabled:text-muted"
   >
-    {calculating ? "Calculating..." : "Compare prices"}
+    {calculating ? "Calculating..." : "Compare"}
   </button>
 </div>

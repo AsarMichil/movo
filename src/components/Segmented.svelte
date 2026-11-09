@@ -21,12 +21,12 @@
       if (option) onChange(option.value)
     }
   }
-  class="inline-flex w-full rounded-md border-2 border-gray-800 p-0.5 dark:border-gray-600"
+  class="flex border-2 border-rule bg-surface"
 >
   {#each options as option (option.value)}
     <ToggleGroup.Item
       value={option.value}
-      class="flex-1 cursor-pointer rounded px-3 py-1.5 text-sm font-medium text-gray-600 data-[state=on]:bg-gray-800 data-[state=on]:text-white dark:text-gray-300 dark:data-[state=on]:bg-gray-600"
+      class="min-h-11 flex-1 cursor-pointer border-l border-hair px-4 text-sm font-bold whitespace-nowrap text-muted first:border-l-0 data-[state=on]:bg-ink data-[state=on]:text-bg"
     >
       {option.label}
     </ToggleGroup.Item>

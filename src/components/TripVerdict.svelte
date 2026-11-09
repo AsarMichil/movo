@@ -1,49 +1,88 @@
 <script lang="ts">
+  import type { Snippet } from "svelte"
   import { MODO_PLAN_LABELS, type ComparisonResult } from "../calculations"
+  import { formatDuration } from "../lib/trip-time"
+  import type { Trip } from "./TripTypes"
 
-  let { result }: { result: ComparisonResult } = $props()
+  type Props = { result: ComparisonResult; trip: Trip; footer?: Snippet }
 
-  const rows = $derived(
-    [
-      {
-        id: "modo",
-        label: MODO_PLAN_LABELS[result.modo_plan],
-        total: result.modo.total,
-      },
-      { id: "evo", label: "Evo", total: result.evo.total },
-    ].sort(
-      (a, b) =>
-        Number(b.id === result.cheapest) - Number(a.id === result.cheapest),
-    ),
+  let { result, trip, footer }: Props = $props()
+
+  const { driving_minutes, staying_minutes, round_trip_required } = $derived(
+    trip.pricing,
   )
+  const tripMinutes = $derived(
+    driving_minutes * (round_trip_required ? 2 : 1) + staying_minutes,
+  )
+
+  const providers = $derived({
+    evo: { label: "Evo", total: result.evo.total, dot: "bg-evo" },
+    modo: {
+      label: MODO_PLAN_LABELS[result.modo_plan],
+      total: result.modo.total,
+      dot: "bg-modo",
+    },
+  })
+  const winner = $derived(providers[result.cheapest])
+  const loser = $derived(providers[result.cheapest === "evo" ? "modo" : "evo"])
 </script>
 
-<ul class="space-y-2" aria-label="Price comparison">
-  {#each rows as row (row.id)}
-    {@const cheapest = row.id === result.cheapest}
+<div class="border-2 border-rule bg-surface">
+  <ul aria-label="Price comparison">
     <li
-      class={[
-        "flex items-center justify-between gap-3 rounded-full px-4 py-2 shadow-md",
-        cheapest
-          ? "bg-white ring-2 ring-green-600 dark:bg-gray-800 dark:ring-green-400"
-          : "bg-white/90 text-gray-600 dark:bg-gray-800/90 dark:text-gray-300",
-      ]}
+      class="border-b-2 border-rule bg-signal px-3.5 pt-3 pb-2.5 text-on-signal"
     >
-      <span class="flex items-center gap-2 font-semibold">
-        {row.label}
-        {#if cheapest}
+      <div class="flex items-center justify-between gap-2">
+        <span
+          class="bg-on-signal px-1.5 py-0.5 text-[11px] font-extrabold tracking-[0.07em] text-signal uppercase"
+        >
+          Cheapest
+        </span>
+        <span class="text-[13px] font-semibold tabular-nums">
+          {round_trip_required ? "Round trip" : "One way"} · {formatDuration(
+            tripMinutes,
+          )}
+        </span>
+      </div>
+      <div class="mt-1 flex flex-wrap items-end justify-between gap-x-2">
+        <span
+          class="flex items-center gap-2 text-[22px] font-extrabold tracking-[-0.02em]"
+        >
           <span
-            class="rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white dark:bg-green-500"
-          >
-            Cheapest
-          </span>
-        {/if}
+            class={[
+              "size-2.5 shrink-0 ring-[1.5px] ring-on-signal",
+              winner.dot,
+            ]}
+            aria-hidden="true"
+          ></span>
+          {winner.label}
+        </span>
+        <span
+          class="ml-auto text-[52px] leading-[0.9] font-extrabold tracking-[-0.045em] tabular-nums"
+        >
+          ${winner.total.toFixed(2)}
+        </span>
+      </div>
+    </li>
+    <li class="flex items-center gap-2.5 hatch px-3.5 py-2.5 text-muted">
+      <span class="flex flex-1 items-center gap-2 font-semibold">
+        <span class={["size-2.5 shrink-0", loser.dot]} aria-hidden="true"
+        ></span>
+        {loser.label}
+      </span>
+      <span class="text-[13px] font-bold text-loser tabular-nums">
+        +${result.savings.toFixed(2)}<span class="sr-only"> more</span>
       </span>
       <span
-        class={["tabular-nums", cheapest ? "text-lg font-bold" : "font-medium"]}
+        class="text-[19px] font-bold tracking-[-0.02em] text-ink tabular-nums"
       >
-        ${row.total.toFixed(2)}
+        ${loser.total.toFixed(2)}
       </span>
     </li>
-  {/each}
-</ul>
+  </ul>
+  {#if footer}
+    <div class="border-t-2 border-rule">
+      {@render footer()}
+    </div>
+  {/if}
+</div>

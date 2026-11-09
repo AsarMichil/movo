@@ -7,8 +7,10 @@ import {
   startOfHour,
 } from "date-fns"
 
-// The time spent at the destination: a duration, or a wall-clock time to leave it.
-export type Stay = { minutes: number } | { until: Date }
+// The time spent at the destination: a duration, a chip's time to leave it, or a
+// picked time the trip must be over by (home when driving back, else leaving there).
+// Picked times are their own kind so one never passes for a chip and moves with it.
+export type Stay = { minutes: number } | { until: Date } | { endBy: Date }
 
 export function nextQuarterHour(now: Date): Date {
   const hour = startOfHour(now)
@@ -16,21 +18,17 @@ export function nextQuarterHour(now: Date): Date {
   return addMinutes(hour, minutes)
 }
 
-export const toLocalInput = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm")
-
-export function fromLocalInput(value: string): Date | undefined {
-  const date = new Date(value)
-  return value && !Number.isNaN(date.getTime()) ? date : undefined
-}
-
 export function stayMinutes(
   stay: Stay,
   leaveAt: Date,
   drivingMinutes: number,
+  roundTrip: boolean,
 ): number {
   if ("minutes" in stay) return stay.minutes
+  const [end, drives] =
+    "until" in stay ? [stay.until, 1] : [stay.endBy, roundTrip ? 2 : 1]
   const minutes =
-    (stay.until.getTime() - leaveAt.getTime()) / 60_000 - drivingMinutes
+    (end.getTime() - leaveAt.getTime()) / 60_000 - drives * drivingMinutes
   return Math.max(0, Math.round(minutes))
 }
 
@@ -56,7 +54,7 @@ export const STAY_CHIPS: { label: string; stay: (leaveAt: Date) => Stay }[] = [
   { label: "Overnight", stay: (leaveAt) => ({ until: overnightEnd(leaveAt) }) },
 ]
 
-// Chip stays are relative to the leave time, so they move with it; a picked end time stays put.
+// Chip stays are relative to the leave time, so they move with it; a picked time stays put.
 export function followLeaveAt(stay: Stay, from: Date, to: Date): Stay {
   const chip = STAY_CHIPS.find((chip) => isSameStay(stay, chip.stay(from)))
   return chip ? chip.stay(to) : stay
@@ -64,7 +62,9 @@ export function followLeaveAt(stay: Stay, from: Date, to: Date): Stay {
 
 export function isSameStay(a: Stay, b: Stay): boolean {
   if ("minutes" in a) return "minutes" in b && a.minutes === b.minutes
-  return "until" in b && a.until.getTime() === b.until.getTime()
+  if ("until" in a)
+    return "until" in b && a.until.getTime() === b.until.getTime()
+  return "endBy" in b && a.endBy.getTime() === b.endBy.getTime()
 }
 
 export function formatDuration(minutes: number): string {

@@ -3,11 +3,9 @@ import {
   STAY_CHIPS,
   followLeaveAt,
   formatDuration,
-  fromLocalInput,
   isSameStay,
   nextQuarterHour,
   stayMinutes,
-  toLocalInput,
   walkMinutes,
 } from "./trip-time"
 
@@ -15,29 +13,36 @@ const at = (value: string) => new Date(value)
 
 describe("trip-time", () => {
   it("rounds up to the next quarter hour, keeping exact quarters", () => {
-    expect(toLocalInput(nextQuarterHour(at("2026-11-06T14:01:30")))).toBe(
-      "2026-11-06T14:15",
+    expect(nextQuarterHour(at("2026-11-06T14:01:30"))).toEqual(
+      at("2026-11-06T14:15"),
     )
-    expect(toLocalInput(nextQuarterHour(at("2026-11-06T14:45")))).toBe(
-      "2026-11-06T14:45",
+    expect(nextQuarterHour(at("2026-11-06T14:45"))).toEqual(
+      at("2026-11-06T14:45"),
     )
-    expect(toLocalInput(nextQuarterHour(at("2026-11-06T23:50")))).toBe(
-      "2026-11-07T00:00",
+    expect(nextQuarterHour(at("2026-11-06T23:50"))).toEqual(
+      at("2026-11-07T00:00"),
     )
-  })
-
-  it("parses local datetime input values and rejects empty ones", () => {
-    expect(fromLocalInput("2026-11-06T09:30")?.getHours()).toBe(9)
-    expect(fromLocalInput("")).toBeUndefined()
   })
 
   it("derives the stay from an end time minus the drive, clamped at 0", () => {
     const leaveAt = at("2026-11-06T10:00")
-    expect(stayMinutes({ minutes: 90 }, leaveAt, 20)).toBe(90)
-    expect(stayMinutes({ until: at("2026-11-06T12:00") }, leaveAt, 20)).toBe(
-      100,
-    )
-    expect(stayMinutes({ until: at("2026-11-06T10:10") }, leaveAt, 20)).toBe(0)
+    expect(stayMinutes({ minutes: 90 }, leaveAt, 20, true)).toBe(90)
+    expect(
+      stayMinutes({ until: at("2026-11-06T12:00") }, leaveAt, 20, true),
+    ).toBe(100)
+    expect(
+      stayMinutes({ until: at("2026-11-06T10:10") }, leaveAt, 20, false),
+    ).toBe(0)
+  })
+
+  it("takes both drives off a picked end time only when driving back", () => {
+    const leaveAt = at("2026-11-06T10:00")
+    const endBy = { endBy: at("2026-11-06T12:00") }
+    expect(stayMinutes(endBy, leaveAt, 20, true)).toBe(80)
+    expect(stayMinutes(endBy, leaveAt, 20, false)).toBe(100)
+    expect(
+      stayMinutes({ endBy: at("2026-11-06T10:30") }, leaveAt, 20, true),
+    ).toBe(0)
   })
 
   it("ends All day at 6pm, or the next day when leaving late", () => {
@@ -61,7 +66,7 @@ describe("trip-time", () => {
     // Mar 8 springs forward (BC's last change): still 9am wall-clock, 13 h later
     const leaveAt = at("2026-03-07T19:00")
     const { until } = overnight.stay(leaveAt) as { until: Date }
-    expect(toLocalInput(until)).toBe("2026-03-08T09:00")
+    expect(until).toEqual(at("2026-03-08T09:00"))
     expect(until.getTime() - leaveAt.getTime()).toBe(13 * 3_600_000)
   })
 
@@ -74,6 +79,9 @@ describe("trip-time", () => {
     const picked = { until: at("2026-11-06T16:30") }
     expect(followLeaveAt(picked, from, to)).toBe(picked)
     expect(followLeaveAt({ minutes: 60 }, from, to)).toEqual({ minutes: 60 })
+    // A picked 6pm is not All day, so it stays put
+    const endBy = { endBy: at("2026-11-06T18:00") }
+    expect(followLeaveAt(endBy, from, to)).toBe(endBy)
   })
 
   it("compares stays by kind and value", () => {
@@ -85,6 +93,18 @@ describe("trip-time", () => {
       isSameStay(
         { until: at("2026-11-06T10:00") },
         { until: at("2026-11-06T10:00") },
+      ),
+    ).toBe(true)
+    expect(
+      isSameStay(
+        { endBy: at("2026-11-06T18:00") },
+        { until: at("2026-11-06T18:00") },
+      ),
+    ).toBe(false)
+    expect(
+      isSameStay(
+        { endBy: at("2026-11-06T18:00") },
+        { endBy: at("2026-11-06T18:00") },
       ),
     ).toBe(true)
   })

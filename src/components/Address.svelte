@@ -18,6 +18,7 @@
     label: string
     value: Place | undefined
     placeholder?: string
+    dot: "round" | "square"
     onLocationSelected?: (
       coordinate: InstanceType<MapKit["Coordinate"]>,
       isCurrentLocation: boolean,
@@ -28,6 +29,7 @@
     label,
     value = $bindable(),
     placeholder,
+    dot,
     onLocationSelected,
   }: Props = $props()
 
@@ -35,7 +37,7 @@
 
   let results = $state.raw<SearchAutocompleteResult[]>([])
   // Follows the selected place (also when set from a shared link) until the user types
-  let inputValue = $derived(value?.displayLines.join(" ") ?? "")
+  let inputValue = $derived(value?.displayLines.join(", ") ?? "")
   let showLocationOption = $state(false)
   let isRequestingLocation = $state(false)
 
@@ -56,7 +58,7 @@
   const items = $derived(
     results.map((result) => ({
       id: result.id ?? crypto.randomUUID(),
-      label: result.displayLines.join(" "),
+      label: result.displayLines.join(", "),
       result,
     })),
   )
@@ -175,13 +177,17 @@
   }
 </script>
 
-<div class="relative">
-  <label
-    for={inputId}
-    class="sr-only text-sm text-gray-700 md:not-sr-only md:block dark:text-gray-300"
-  >
-    {label}
-  </label>
+<div
+  class="relative flex h-11 items-center gap-2.5 px-3 outline-offset-[-4px] outline-ink focus-within:outline-2"
+>
+  <span
+    aria-hidden="true"
+    class={[
+      "size-2.5 shrink-0",
+      dot === "round" ? "rounded-full inset-ring-3 inset-ring-ink" : "bg-ink",
+    ]}
+  ></span>
+  <label for={inputId} class="sr-only">{label}</label>
   <Combobox.Root
     type="single"
     {inputValue}
@@ -194,22 +200,28 @@
       oninput={handleInput}
       onfocus={handleFocus}
       onblur={handleBlur}
-      class="w-full border-2 border-gray-800 bg-transparent p-1 text-gray-800 md:px-2 md:py-3 dark:border-gray-600 dark:text-gray-100"
+      class="h-full min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:font-normal placeholder:text-muted"
       {placeholder}
     />
 
     {#if items.length > 0}
       <Combobox.ContentStatic
-        class="absolute top-full right-0 left-0 z-200 mt-1 max-h-80 min-h-64 overflow-y-auto border-2 border-gray-800 bg-white p-2 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+        class="absolute top-full -right-0.5 -left-0.5 z-200 mt-0.5 max-h-80 overflow-y-auto border-2 border-rule bg-surface shadow-block"
       >
         {#each items as item (item.id)}
           <Combobox.Item
             value={item.id}
             label={item.label}
-            class="cursor-pointer rounded-md p-2 text-gray-800 hover:bg-orange-50 data-highlighted:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700 dark:data-highlighted:bg-gray-700"
+            class="group cursor-pointer border-b border-hair px-3 py-2 last:border-b-0 hover:bg-ink hover:text-bg data-highlighted:bg-ink data-highlighted:text-bg"
           >
             {#each item.result.displayLines as line, index (index)}
-              <p class={{ "text-sm": index !== 0 }}>{line}</p>
+              <p
+                class={index === 0
+                  ? "font-semibold"
+                  : "text-sm text-muted group-hover:text-bg group-data-highlighted:text-bg"}
+              >
+                {line}
+              </p>
             {/each}
           </Combobox.Item>
         {/each}
@@ -220,10 +232,10 @@
   {#if showLocationOption}
     <ul
       transition:fly={{ y: -10, duration: 100 }}
-      class="absolute top-full right-0 left-0 z-200 mt-1 border-2 border-gray-800 bg-white p-2 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+      class="absolute top-full -right-0.5 -left-0.5 z-200 mt-0.5 border-2 border-rule bg-surface shadow-block"
     >
       {#if isRequestingLocation}
-        <li class="p-2 text-gray-600 dark:text-gray-400">
+        <li class="flex h-11 items-center px-3 text-muted">
           Getting your location...
         </li>
       {:else}
@@ -231,7 +243,7 @@
           <button
             type="button"
             onclick={requestUserLocation}
-            class="flex w-full cursor-pointer items-center gap-2 rounded-md p-2 text-left text-gray-800 hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700"
+            class="flex h-11 w-full cursor-pointer items-center gap-2 px-3 text-left font-semibold hover:bg-ink hover:text-bg"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -243,6 +255,7 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
+              aria-hidden="true"
             >
               <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
               <circle cx="12" cy="10" r="3" />

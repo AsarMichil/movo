@@ -4,8 +4,9 @@
 </script>
 
 <button
+  type="button"
   onclick={() => themeContext.toggle()}
-  class="rounded-md bg-gray-200 p-2 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+  class="grid size-11 cursor-pointer place-items-center border-2 border-rule bg-surface text-ink"
   aria-label="Toggle theme"
   title={themeContext.theme === "light"
     ? "Light mode"
@@ -14,10 +15,10 @@
       : "System theme"}
 >
   {#if themeContext.theme === "light"}
-    <Sun class="h-5 w-5 text-gray-800 dark:text-gray-200" />
+    <Sun class="size-5" />
   {:else if themeContext.theme === "dark"}
-    <Moon class="h-5 w-5 text-gray-800 dark:text-gray-200" />
+    <Moon class="size-5" />
   {:else}
-    <Monitor class="h-5 w-5 text-gray-800 dark:text-gray-200" />
+    <Monitor class="size-5" />
   {/if}
 </button>

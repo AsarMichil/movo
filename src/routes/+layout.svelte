@@ -24,5 +24,11 @@
   ></script> -->
 </svelte:head>
 
-<Toaster />
+<Toaster
+  position="top-center"
+  toastOptions={{
+    class:
+      "rounded-none! border-2! border-rule! bg-surface! text-ink! font-sans!",
+  }}
+/>
 {@render children()}
