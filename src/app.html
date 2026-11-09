@@ -8,6 +8,18 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     %sveltekit.head%
+    <script>
+      // Applies the theme before first paint; theme-context.svelte.ts keeps it in sync afterwards.
+      const savedTheme = document.cookie.match(
+        /(?:^|; )theme=(light|dark)/,
+      )?.[1]
+      document.documentElement.classList.toggle(
+        "dark",
+        savedTheme
+          ? savedTheme === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches,
+      )
+    </script>
   </head>
 
   <body data-sveltekit-preload-data="hover" class="h-full">
