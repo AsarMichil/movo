@@ -3,6 +3,7 @@
   import Plus from "@lucide/svelte/icons/plus"
   import Minus from "@lucide/svelte/icons/minus"
   import Scan from "@lucide/svelte/icons/scan"
+  import Satellite from "@lucide/svelte/icons/satellite"
   import { load, type MapKit } from "@apple/mapkit-loader"
   import { PUBLIC_MAPKIT_TOKEN } from "$env/static/public"
   import type { ParkingSpot } from "../calculations"
@@ -52,6 +53,7 @@
   let parkingMarker = $state.raw<Marker>()
   let route = $state.raw<Trip["route"]["polyline"]>()
   let controlsWidth = $state(0)
+  let satellite = $state(false)
   let legendHeight = $state(0)
 
   const parking = $derived(trip?.parking ?? null)
@@ -162,7 +164,11 @@
 
   $effect(() => {
     if (route && mapkit)
-      route.style = new mapkit.Style({ strokeColor: colors.ink, lineWidth: 5 })
+      route.style = new mapkit.Style({
+        // Imagery is dark in both themes, so the route stays light on it.
+        strokeColor: satellite ? "#F2F4F3" : colors.ink,
+        lineWidth: 5,
+      })
   })
 
   // Keeps MapKit's own controls and every fitted route clear of the shell's panels and the map overlays.
@@ -170,7 +176,7 @@
     if (!map || !mapkit) return
     map.padding = new mapkit.Padding(
       insets.top,
-      controlsWidth,
+      controlsWidth && controlsWidth + 40,
       insets.bottom + legendHeight,
       insets.left,
     )
@@ -179,6 +185,13 @@
 
   $effect(() => {
     if (map) map.colorScheme = themeContext.mapColorScheme
+  })
+
+  $effect(() => {
+    if (map && mapkit)
+      map.mapType = satellite
+        ? mapkit.Map.MapTypes.Hybrid
+        : mapkit.Map.MapTypes.Standard
   })
 
   onMount(async () => {
@@ -230,40 +243,53 @@
   <div class="h-full w-full" bind:this={mapElement}></div>
 
   <div
-    bind:offsetWidth={controlsWidth}
-    class="pointer-events-none absolute top-0 right-0 hidden flex-col gap-2 p-5 md:flex"
+    class="pointer-events-none absolute top-0 right-0 flex flex-col gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:p-5"
   >
-    <div
-      class="pointer-events-auto flex flex-col border-2 border-rule bg-surface text-ink"
-    >
+    <div bind:offsetWidth={controlsWidth} class="hidden flex-col gap-2 md:flex">
+      <div
+        class="pointer-events-auto flex flex-col border-2 border-rule bg-surface text-ink"
+      >
+        <button
+          type="button"
+          aria-label="Zoom in"
+          onclick={() => zoom(0.5)}
+          class={controlClass}
+        >
+          <Plus class="size-5" strokeWidth={2.6} />
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onclick={() => zoom(2)}
+          class={[controlClass, "border-t border-hair"]}
+        >
+          <Minus class="size-5" strokeWidth={2.6} />
+        </button>
+      </div>
       <button
         type="button"
-        aria-label="Zoom in"
-        onclick={() => zoom(0.5)}
-        class={controlClass}
+        aria-label="Fit route"
+        disabled={!route}
+        onclick={fitRoute}
+        class={[
+          controlClass,
+          "pointer-events-auto border-2 border-rule bg-surface text-ink",
+        ]}
       >
-        <Plus class="size-5" strokeWidth={2.6} />
-      </button>
-      <button
-        type="button"
-        aria-label="Zoom out"
-        onclick={() => zoom(2)}
-        class={[controlClass, "border-t border-hair"]}
-      >
-        <Minus class="size-5" strokeWidth={2.6} />
+        <Scan class="size-5" />
       </button>
     </div>
     <button
       type="button"
-      aria-label="Fit route"
-      disabled={!route}
-      onclick={fitRoute}
+      aria-label="Satellite view"
+      aria-pressed={satellite}
+      onclick={() => (satellite = !satellite)}
       class={[
         controlClass,
-        "pointer-events-auto border-2 border-rule bg-surface text-ink",
+        "pointer-events-auto border-2 border-rule bg-surface text-ink aria-pressed:bg-ink aria-pressed:text-bg",
       ]}
     >
-      <Scan class="size-5" />
+      <Satellite class="size-5" />
     </button>
   </div>
 
