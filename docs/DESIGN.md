@@ -12,7 +12,9 @@ desktop https://claude.ai/artifact/WjVXrzxLrKLZdV8oapugAH (floating panel row).
    chartreuse plate, readable in under a second. The loser row is hatched and
    quiet, with the difference in `loser` red.
 2. **One signal colour.** `signal` (#C6F432) marks the answer, the primary
-   Compare action and the Park Here! pin. Nothing decorative uses it. On a
+   Compare action, the Park Here! pin, and the on state of switches and
+   toggle buttons (with an `on-signal` knob or icon). Nothing decorative uses
+   it. Choice chips and segmented options stay `bg-ink text-bg` when selected. On a
    light surface it only reads with a 2px `rule` frame around it: never put
    unframed signal on white.
 3. **Brands stay small.** Evo and Modo colours only appear as a square identity
@@ -38,7 +40,7 @@ desktop https://claude.ai/artifact/WjVXrzxLrKLZdV8oapugAH (floating panel row).
 | `rule`       | #0B0C0D           | #F2F4F3 | 2px frames                              |
 | `hair`       | #D8DBDC           | #2C3032 | 1px dividers                            |
 | `hatch`      | #E4E7E8           | #24282A | `hatch` utility stripes (loser row)     |
-| `signal`     | #C6F432           | same    | the answer, primary action, park pin    |
+| `signal`     | #C6F432           | same    | answer, primary action, pin, toggle on  |
 | `on-signal`  | #0B0C0D           | same    | text on signal                          |
 | `loser`      | #C4291C           | #FF6B57 | price difference, errors                |
 | `evo`/`modo` | #00A3D9 / #2A9D8F |         | identity dots only                      |

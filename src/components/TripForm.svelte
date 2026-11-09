@@ -237,7 +237,7 @@
     />
     <span
       aria-hidden="true"
-      class="relative h-7 w-12 shrink-0 border-2 border-rule bg-surface outline-offset-2 outline-ink peer-checked:bg-ink peer-focus-visible:outline-2 after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:bg-ink peer-checked:after:translate-x-5 peer-checked:after:bg-bg"
+      class="relative h-7 w-12 shrink-0 border-2 border-rule bg-surface outline-offset-2 outline-ink transition-colors peer-checked:bg-signal peer-focus-visible:outline-2 after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:bg-muted after:transition-transform peer-checked:after:translate-x-5 peer-checked:after:bg-on-signal"
     ></span>
   </label>
 {/snippet}

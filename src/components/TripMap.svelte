@@ -286,7 +286,7 @@
       onclick={() => (satellite = !satellite)}
       class={[
         controlClass,
-        "pointer-events-auto border-2 border-rule bg-surface text-ink aria-pressed:bg-ink aria-pressed:text-bg",
+        "pointer-events-auto border-2 border-rule bg-surface text-ink aria-pressed:bg-signal aria-pressed:text-on-signal",
       ]}
     >
       <Satellite class="size-5" />
