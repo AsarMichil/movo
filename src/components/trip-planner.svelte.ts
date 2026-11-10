@@ -138,6 +138,15 @@ export class TripPlanner {
     this.#syncUrl()
   }
 
+  clear = () => {
+    this.form.origin = undefined
+    this.form.destination = undefined
+    this.form.originIsCurrentLocation = false
+    this.trip = null
+    this.error = null
+    replaceState(resolve("/"), {})
+  }
+
   calculate = async () => {
     const { origin, destination, form } = this
     const mapkit = this.#mapkit

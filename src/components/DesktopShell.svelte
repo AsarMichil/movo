@@ -40,7 +40,7 @@
   >
     <header class="flex items-center justify-between gap-2">
       <span class="text-[28px] leading-none font-black tracking-[-0.045em]">
-        movo
+        movo go
       </span>
       <div class="flex gap-2">
         {#if showResults || planner.activeTrip}
@@ -51,6 +51,15 @@
             class="h-11 cursor-pointer border-2 border-rule bg-surface px-3.5 text-sm font-bold"
           >
             {showResults ? "Edit trip" : "View results"}
+          </button>
+        {/if}
+        {#if planner.activeTrip}
+          <button
+            type="button"
+            onclick={planner.clear}
+            class="h-11 cursor-pointer border-2 border-rule bg-surface px-3.5 text-sm font-bold"
+          >
+            Clear
           </button>
         {/if}
         <ThemeToggle />

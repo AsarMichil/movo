@@ -56,18 +56,30 @@
   bind:offsetHeight={bottom}
   class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:hidden"
 >
-  <button
-    type="button"
-    aria-label={planner.activeTrip ? "Edit trip" : "Plan a trip"}
-    onclick={() => openSheet("form")}
-    class="pointer-events-auto grid size-14 cursor-pointer place-items-center self-end bg-ink text-bg shadow-block"
-  >
+  <div class="flex justify-end gap-3">
     {#if planner.activeTrip}
-      <Pencil class="size-6" strokeWidth={2.6} />
-    {:else}
-      <Plus class="size-7" strokeWidth={3} />
+      <button
+        type="button"
+        aria-label="Clear trip"
+        onclick={planner.clear}
+        class="pointer-events-auto grid size-14 cursor-pointer place-items-center border-2 border-rule bg-surface shadow-block"
+      >
+        <X class="size-6" strokeWidth={2.6} />
+      </button>
     {/if}
-  </button>
+    <button
+      type="button"
+      aria-label={planner.activeTrip ? "Edit trip" : "Plan a trip"}
+      onclick={() => openSheet("form")}
+      class="pointer-events-auto grid size-14 cursor-pointer place-items-center bg-ink text-bg shadow-block"
+    >
+      {#if planner.activeTrip}
+        <Pencil class="size-6" strokeWidth={2.6} />
+      {:else}
+        <Plus class="size-7" strokeWidth={3} />
+      {/if}
+    </button>
+  </div>
 
   <div aria-live="polite" class="pointer-events-auto">
     {#if planner.calculating}
