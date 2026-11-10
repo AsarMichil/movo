@@ -14,6 +14,7 @@
 </script>
 
 <svelte:head>
+  <title>movo go</title>
   <!-- <script
     src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js"
     crossorigin="anonymous"
