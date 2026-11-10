@@ -221,6 +221,7 @@
       label="Origin"
       placeholder="Starting location"
       dot="round"
+      localOnly
       onLocationSelected={(_, isCurrentLocation) =>
         (form.originIsCurrentLocation = isCurrentLocation)}
     />

@@ -19,6 +19,7 @@
     value: Place | undefined
     placeholder?: string
     dot: "round" | "square"
+    localOnly?: boolean
     onLocationSelected?: (
       coordinate: InstanceType<MapKit["Coordinate"]>,
       isCurrentLocation: boolean,
@@ -30,6 +31,7 @@
     value = $bindable(),
     placeholder,
     dot,
+    localOnly = false,
     onLocationSelected,
   }: Props = $props()
 
@@ -44,7 +46,7 @@
   let controller: AbortController | undefined
 
   const fetchResults = debounced(200, (query: string, signal: AbortSignal) =>
-    mk.search.autocomplete(query, { signal }).then(
+    mk.search.autocomplete(query, { signal, localOnly }).then(
       (newResults) => {
         results = newResults
       },
