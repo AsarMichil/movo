@@ -15,7 +15,7 @@ import {
 } from "../lib/url-params"
 import { getErrorMessage } from "../lib/errors"
 import { nextQuarterHour, stayMinutes, walkMeters } from "../lib/trip-time"
-import type { Coordinate, Place, Trip, TripForm } from "./TripTypes"
+import type { Coordinate, Place, Route, Trip, TripForm } from "./TripTypes"
 
 const label = (place: Place | undefined) => place?.displayLines.join(", ") ?? ""
 
@@ -34,7 +34,7 @@ export class TripPlanner {
     vehicleType: undefined,
     modoPlan: DEFAULT_VALUES.modo_plan,
   })
-  trip = $state.raw<Trip | null>(null)
+  route = $state.raw<Route | null>(null)
   calculating = $state(false)
   error = $state<string | null>(null)
 
@@ -42,20 +42,47 @@ export class TripPlanner {
   destinationLabel = $derived(label(this.form.destination))
   origin = $derived(this.form.origin?.coordinate)
   destination = $derived(this.form.destination?.coordinate)
-  // A trip only stays on screen while the form still points at the same places.
-  activeTrip = $derived(
-    this.trip &&
-      this.trip.origin === this.origin &&
-      this.trip.destination === this.destination
-      ? this.trip
-      : null,
-  )
+  // The route is only good for the places and time it was fetched for; the rest of the form reprices it live.
+  activeTrip = $derived.by((): Trip | null => {
+    const { route, form } = this
+    if (
+      !route ||
+      route.origin !== this.origin ||
+      route.destination !== this.destination ||
+      route.leaveAt.getTime() !== form.leaveAt.getTime()
+    )
+      return null
+    const parking = findParking(
+      this.#homezones,
+      route.origin,
+      route.destination,
+      form.walkMeters,
+    )
+    return {
+      ...route,
+      parking,
+      walkMeters: form.walkMeters,
+      pricing: {
+        start_date: route.leaveAt,
+        driving_minutes: route.drivingMinutes,
+        staying_minutes: stayMinutes(
+          form.stay,
+          route.leaveAt,
+          route.drivingMinutes,
+          form.roundTrip,
+        ),
+        distance_km: route.distanceKm,
+        is_bcaa_member: form.bcaaMember,
+        vehicle_preference: form.vehicleType,
+        end_is_in_evo_home_zone: parking !== null,
+        round_trip_required: form.roundTrip,
+        is_ev: form.preferEv,
+        modo_plan: form.modoPlan,
+      },
+    }
+  })
   result = $derived(
-    this.activeTrip &&
-      compareCarShareOptions({
-        ...this.activeTrip.pricing,
-        modo_plan: this.form.modoPlan,
-      }),
+    this.activeTrip && compareCarShareOptions(this.activeTrip.pricing),
   )
 
   #homezones: Homezone[]
@@ -76,6 +103,7 @@ export class TripPlanner {
         vehicleType: shared.vehicle_type,
         modoPlan: shared.modo_plan,
       } satisfies Partial<TripForm>)
+    $effect(() => this.#syncUrl())
   }
 
   async start(mapkit: MapKit) {
@@ -128,27 +156,27 @@ export class TripPlanner {
       electric_vehicle: pricing.is_ev,
       round_trip: pricing.round_trip_required,
       vehicle_type: pricing.vehicle_preference,
-      modo_plan: this.form.modoPlan,
+      modo_plan: pricing.modo_plan,
     })
     replaceState(resolve(`/?${searchParams}`), {})
   }
 
   changePlan = (plan: ModoPlan) => {
     this.form.modoPlan = plan
-    this.#syncUrl()
   }
 
   clear = () => {
     this.form.origin = undefined
     this.form.destination = undefined
     this.form.originIsCurrentLocation = false
-    this.trip = null
+    this.route = null
     this.error = null
     replaceState(resolve("/"), {})
   }
 
   calculate = async () => {
-    const { origin, destination, form } = this
+    const { origin, destination } = this
+    const { leaveAt } = this.form
     const mapkit = this.#mapkit
     if (!origin || !destination || !mapkit || this.calculating) return
 
@@ -160,47 +188,22 @@ export class TripPlanner {
         mapkit,
         origin,
         destination,
-        form.leaveAt,
+        leaveAt,
       )
       const route = directions?.routes[0]
       if (!route) throw new Error("No driving route found for this trip.")
 
-      const driving_minutes =
-        Math.round((route.expectedTravelTime / 60) * 100) / 100
-      const parking = findParking(
-        this.#homezones,
+      this.route = {
         origin,
         destination,
-        form.walkMeters,
-      )
-
-      this.trip = {
-        origin,
-        destination,
+        leaveAt,
         route,
-        parking,
-        walkMeters: form.walkMeters,
-        pricing: {
-          start_date: form.leaveAt,
-          driving_minutes,
-          staying_minutes: stayMinutes(
-            form.stay,
-            form.leaveAt,
-            driving_minutes,
-            form.roundTrip,
-          ),
-          distance_km: Math.ceil(route.distance / 1000),
-          is_bcaa_member: form.bcaaMember,
-          vehicle_preference: form.vehicleType,
-          end_is_in_evo_home_zone: parking !== null,
-          round_trip_required: form.roundTrip,
-          is_ev: form.preferEv,
-        },
+        drivingMinutes: Math.round((route.expectedTravelTime / 60) * 100) / 100,
+        distanceKm: Math.ceil(route.distance / 1000),
       }
-      this.#syncUrl()
     } catch (err) {
       console.error("Error calculating trip:", err)
-      this.trip = null
+      this.route = null
       this.error = getErrorMessage(err, "Could not calculate this trip.")
     } finally {
       this.calculating = false

@@ -31,12 +31,17 @@ export interface TripForm {
   modoPlan: ModoPlan
 }
 
-// A priced trip; everything but the Modo plan is fixed when the route comes back.
-export interface Trip {
+export interface Route {
   origin: Coordinate
   destination: Coordinate
+  leaveAt: Date
   route: DirectionsResponse["routes"][number]
+  drivingMinutes: number
+  distanceKm: number
+}
+
+export interface Trip extends Route {
   parking: ParkingSpot | null
   walkMeters: number
-  pricing: Omit<TripParameters, "modo_plan">
+  pricing: TripParameters
 }
