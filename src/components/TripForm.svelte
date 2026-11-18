@@ -165,11 +165,14 @@
         (drivingMinutes !== undefined && minutesThere === 0)),
   )
 
-  const canSubmit = $derived(
-    form.origin?.coordinate !== undefined &&
-      form.destination?.coordinate !== undefined &&
-      !stayTooShort &&
-      !calculating,
+  const blocker = $derived(
+    form.origin?.coordinate === undefined
+      ? "Pick a starting location from the suggestions."
+      : form.destination?.coordinate === undefined
+        ? "Pick a destination from the suggestions."
+        : stayTooShort
+          ? "Pick a later time to be back."
+          : undefined,
   )
 
   const chipClass =
@@ -429,12 +432,18 @@
     />
   </div>
 
-  <button
-    type="button"
-    disabled={!canSubmit}
-    onclick={onSubmit}
-    class="h-14 w-full cursor-pointer border-2 border-rule bg-signal text-lg font-black tracking-tight text-on-signal uppercase disabled:cursor-not-allowed disabled:border-hair disabled:bg-surface disabled:text-muted"
-  >
-    {calculating ? "Calculating..." : "Compare"}
-  </button>
+  <div class="flex flex-col gap-2">
+    {#if blocker}
+      <p id="{uid}-blocker" class="text-sm text-muted">{blocker}</p>
+    {/if}
+    <button
+      type="button"
+      disabled={blocker !== undefined || calculating}
+      aria-describedby={blocker && `${uid}-blocker`}
+      onclick={onSubmit}
+      class="h-14 w-full cursor-pointer border-2 border-rule bg-signal text-lg font-black tracking-tight text-on-signal uppercase disabled:cursor-not-allowed disabled:border-hair disabled:bg-surface disabled:text-muted"
+    >
+      {calculating ? "Calculating..." : "Compare"}
+    </button>
+  </div>
 </div>

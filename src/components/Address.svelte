@@ -74,7 +74,9 @@
     }
   }
 
+  // Typing replaces the picked place, so an edited field never prices the old one.
   const handleInput: FormEventHandler<HTMLInputElement> = (event) => {
+    value = undefined
     inputValue = event.currentTarget.value
     showLocationOption = false
     controller?.abort()
