@@ -1,0 +1,11 @@
+{
+  "name": "movo go",
+  "short_name": "movo go",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ],
+  "display": "standalone",
+  "background_color": "#c6f432",
+  "theme_color": "#c6f432"
+}
