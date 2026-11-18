@@ -16,11 +16,13 @@
   )
 
   const providers = $derived({
-    evo: { label: "Evo", total: result.evo.total, dot: "bg-evo" },
+    evo: { label: "Evo", total: result.evo.total, dot: "bg-evo", note: "" },
     modo: {
       label: MODO_PLAN_LABELS[result.modo_plan],
       total: result.modo.total,
       dot: "bg-modo",
+      // Modo cars go back to their spot, so a one-way trip still pays the drive back.
+      note: round_trip_required ? "" : "incl. drive back",
     },
   })
   const winner = $derived(providers[result.cheapest])
@@ -56,6 +58,11 @@
             aria-hidden="true"
           ></span>
           {winner.label}
+          {#if winner.note}
+            <span class="text-[13px] font-semibold tracking-normal">
+              {winner.note}
+            </span>
+          {/if}
         </span>
         <span
           class="ml-auto text-[52px] leading-[0.9] font-extrabold tracking-[-0.045em] tabular-nums"
@@ -69,6 +76,9 @@
         <span class={["size-2.5 shrink-0", loser.dot]} aria-hidden="true"
         ></span>
         {loser.label}
+        {#if loser.note}
+          <span class="text-[13px]">{loser.note}</span>
+        {/if}
       </span>
       <span class="text-[13px] font-bold text-loser tabular-nums">
         +${result.savings.toFixed(2)}<span class="sr-only"> more</span>

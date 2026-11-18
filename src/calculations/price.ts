@@ -214,7 +214,9 @@ export function calculateModoCost(params: TripParameters): CostBreakdown {
   const free = freeOvernightIntervals(trip)
   const blockCount = Math.max(1, Math.ceil(minutes / DAY_MINUTES))
 
-  const details: string[] = []
+  const details: string[] = params.round_trip_required
+    ? []
+    : ["Modo cars return to their spot, so this includes the drive back"]
   let timeCost = 0
   let distanceCost = 0
   for (let i = 0; i < blockCount; i++) {
