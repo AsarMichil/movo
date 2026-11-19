@@ -13,7 +13,6 @@ import {
   DEFAULT_VALUES,
   type SharedTrip,
 } from "../lib/url-params"
-import { getErrorMessage } from "../lib/errors"
 import { nextQuarterHour, stayMinutes, walkMeters } from "../lib/trip-time"
 import type { Coordinate, Place, Route, Trip, TripForm } from "./TripTypes"
 
@@ -179,6 +178,7 @@ export class TripPlanner {
     const { leaveAt } = this.form
     const mapkit = this.#mapkit
     if (!origin || !destination || !mapkit || this.calculating) return
+    if (this.activeTrip) return
 
     this.calculating = true
     this.error = null
@@ -191,7 +191,11 @@ export class TripPlanner {
         leaveAt,
       )
       const route = directions?.routes[0]
-      if (!route) throw new Error("No driving route found for this trip.")
+      if (!route) {
+        this.route = null
+        this.error = "There's no driving route between these places."
+        return
+      }
 
       this.route = {
         origin,
@@ -204,7 +208,8 @@ export class TripPlanner {
     } catch (err) {
       console.error("Error calculating trip:", err)
       this.route = null
-      this.error = getErrorMessage(err, "Could not calculate this trip.")
+      this.error =
+        "Couldn't get directions for this trip. Check your connection and try again."
     } finally {
       this.calculating = false
     }

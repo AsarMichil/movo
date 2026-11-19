@@ -443,7 +443,11 @@
       onclick={onSubmit}
       class="h-14 w-full cursor-pointer border-2 border-rule bg-signal text-lg font-black tracking-tight text-on-signal uppercase disabled:cursor-not-allowed disabled:border-hair disabled:bg-surface disabled:text-muted"
     >
-      {calculating ? "Calculating..." : "Compare"}
+      {calculating
+        ? "Calculating..."
+        : drivingMinutes === undefined
+          ? "Compare"
+          : "View results"}
     </button>
   </div>
 </div>

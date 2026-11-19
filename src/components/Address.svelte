@@ -1,6 +1,5 @@
 <script lang="ts">
   import { mk } from "../lib/mapkit"
-  import { getErrorMessage } from "../lib/errors"
   import type { FormEventHandler } from "svelte/elements"
   import { fly } from "svelte/transition"
   import { debounced } from "$lib/debounce"
@@ -52,7 +51,10 @@
       },
       (error) => {
         if (signal.aborted) return
-        toast.error(getErrorMessage(error, "Failed to fetch results"))
+        console.error("Search error:", error)
+        toast.error("Couldn't search for places", {
+          description: "Check your connection and try again.",
+        })
       },
     ),
   )
@@ -173,8 +175,8 @@
       )
     } catch (error) {
       console.error("Error loading MapKit:", error)
-      toast.error("Error", {
-        description: "Failed to load location services.",
+      toast.error("Couldn't load the map service", {
+        description: "Reload the page and try again.",
       })
       isRequestingLocation = false
     }
