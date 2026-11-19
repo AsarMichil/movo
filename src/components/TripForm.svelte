@@ -197,7 +197,7 @@
   onchange: (checked: boolean) => void,
 )}
   <label
-    class="flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-hair py-1"
+    class="relative flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-hair py-1"
   >
     <span>
       <span class="block font-bold">{label}</span>

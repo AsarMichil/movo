@@ -57,12 +57,14 @@
             ]}
             aria-hidden="true"
           ></span>
-          {winner.label}
-          {#if winner.note}
-            <span class="text-[13px] font-semibold tracking-normal">
-              {winner.note}
-            </span>
-          {/if}
+          <span>
+            {winner.label}
+            {#if winner.note}
+              <span class="block text-[13px] font-semibold tracking-normal">
+                {winner.note}
+              </span>
+            {/if}
+          </span>
         </span>
         <span
           class="ml-auto text-[52px] leading-[0.9] font-extrabold tracking-[-0.045em] tabular-nums"
@@ -75,10 +77,12 @@
       <span class="flex flex-1 items-center gap-2 font-semibold">
         <span class={["size-2.5 shrink-0", loser.dot]} aria-hidden="true"
         ></span>
-        {loser.label}
-        {#if loser.note}
-          <span class="text-[13px]">{loser.note}</span>
-        {/if}
+        <span>
+          {loser.label}
+          {#if loser.note}
+            <span class="block text-[13px] font-normal">{loser.note}</span>
+          {/if}
+        </span>
       </span>
       <span class="text-[13px] font-bold text-loser tabular-nums">
         +${result.savings.toFixed(2)}<span class="sr-only"> more</span>
